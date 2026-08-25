@@ -8,7 +8,7 @@
   import HomeEmptyPanel from '../components/HomeEmptyPanel.svelte'
   import HomeFloatingActions from '../components/HomeFloatingActions.svelte'
   import HomeHeroSearch from '../components/HomeHeroSearch.svelte'
-  import type { NavigationSetting, PublicBookmark, PublicCategory, PublicSettings, ThemeMode } from '../../shared/types'
+  import type { BookmarkReorganizeReq, NavigationSetting, PublicBookmark, PublicCategory, PublicSettings, ThemeMode } from '../../shared/types'
   import {
     bookmarkMatchesSearch,
     clampTitleFontSize,
@@ -27,6 +27,8 @@
     resolveHomeActiveSectionId,
     resolveHomeCategorySelection,
   } from '../lib/homeData'
+  import { reorderByIds } from '../lib/reorder'
+  import type { SortTransfer } from '../lib/sortableList'
 
   type AsyncVoid<T = void> = T | Promise<T>
   const SEARCH_FILTER_DEBOUNCE_MS = 120
@@ -50,6 +52,7 @@
   export let onOpenCreateBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
   export let onSortBookmarksInCategory: ((categoryId: number, orderedIds: number[]) => AsyncVoid) | undefined = undefined
+  export let onReorganizeBookmarks: ((categoryOrders: BookmarkReorganizeReq['category_orders']) => AsyncVoid) | undefined = undefined
   export let onSwitchToAdmin: (() => AsyncVoid) | undefined = undefined
   export let onLogout: (() => AsyncVoid) | undefined = undefined
   export let onOpenLogin: (() => AsyncVoid) | undefined = undefined
@@ -67,11 +70,15 @@
   let rootSectionNodes = new Map<number, HTMLElement>()
   let scrollFrame: number | null = null
   let scrollSpySuppressedUntil = 0
+  let homeSortMode = false
+  let homeSortSaving = false
+  let homeSortDraft: PublicBookmark[] = []
 
   $: sortedCategories = homeData.getSortedCategories(categories)
   $: categoryForest = homeData.getCategoryForest(categories)
   $: sortedBookmarks = homeData.getSortedBookmarks(bookmarks)
   $: allCategoryBookmarks = groupBookmarksByCategory(sortedBookmarks)
+  $: displayCategoryBookmarks = homeSortMode ? groupBookmarksByCategory(homeSortDraft) : allCategoryBookmarks
   $: navigationSections = getHomeSections(categoryForest, allCategoryBookmarks)
   $: categoryGroups = getHomeCategoryGroups(categoryForest, selectedCategoryIds)
   $: activeId = resolveHomeActiveSectionId(navigationSections, activeId)
@@ -119,6 +126,72 @@
   $: pageDescription = totalBookmarks > 0
     ? `已整理 ${sortedCategories.length} 个分类，收录 ${totalBookmarks} 个站点。`
     : '一个简洁的公开导航首页。'
+
+  function replaceCategoryOrder(
+    draft: PublicBookmark[],
+    categoryId: number,
+    orderedIds: Array<string | number>,
+  ): PublicBookmark[] {
+    const categoryItems = draft.filter((bookmark) => bookmark.category_id === categoryId)
+    const orderedItems = reorderByIds(categoryItems, orderedIds)
+    let index = 0
+    return draft.map((bookmark) => (
+      bookmark.category_id === categoryId ? orderedItems[index++] : bookmark
+    ))
+  }
+
+  function startHomeSort(): void {
+    if (homeSortMode) return
+    homeSortDraft = [...sortedBookmarks]
+    homeSortMode = true
+  }
+
+  function cancelHomeSort(): void {
+    homeSortMode = false
+    homeSortDraft = []
+  }
+
+  function handleHomeSortDraft(categoryId: number, orderedIds: number[]): void {
+    if (!homeSortMode) return
+    homeSortDraft = replaceCategoryOrder(homeSortDraft, categoryId, orderedIds)
+  }
+
+  function handleHomeSortTransfer(transfer: SortTransfer): void {
+    if (!homeSortMode || transfer.fromCategoryId == null || transfer.toCategoryId == null) return
+
+    const bookmarkId = Number(transfer.itemId)
+    const fromCategoryId = Number(transfer.fromCategoryId)
+    const toCategoryId = Number(transfer.toCategoryId)
+    let nextDraft = homeSortDraft.map((bookmark) => (
+      bookmark.id === bookmarkId
+        ? { ...bookmark, category_id: toCategoryId }
+        : bookmark
+    ))
+
+    nextDraft = replaceCategoryOrder(nextDraft, fromCategoryId, transfer.sourceIds)
+    nextDraft = replaceCategoryOrder(nextDraft, toCategoryId, transfer.targetIds)
+    homeSortDraft = nextDraft
+  }
+
+  async function saveHomeSort(): Promise<void> {
+    if (!onReorganizeBookmarks || !homeSortMode) {
+      cancelHomeSort()
+      return
+    }
+
+    homeSortSaving = true
+    try {
+      const grouped = groupBookmarksByCategory(homeSortDraft)
+      const categoryOrders: BookmarkReorganizeReq['category_orders'] = [...grouped].map(([categoryId, items]) => ({
+        category_id: categoryId,
+        ids: items.map((item) => item.id),
+      }))
+      await onReorganizeBookmarks(categoryOrders)
+      cancelHomeSort()
+    } finally {
+      homeSortSaving = false
+    }
+  }
 
   function scheduleSearchFilterUpdate(value: string): void {
     if (typeof window === 'undefined') {
@@ -399,7 +472,7 @@
           {#each categoryGroups as group (group.root.id)}
             {@const category = group.root}
             {@const selectedCategory = group.selected}
-            {@const selectedBookmarks = allCategoryBookmarks.get(selectedCategory.id) ?? []}
+            {@const selectedBookmarks = displayCategoryBookmarks.get(selectedCategory.id) ?? []}
             {@const panelId = `home-category-panel-${category.id}`}
             <section
               class="root-category-group"
@@ -448,9 +521,17 @@
                   cardDescriptionMode={settings?.card_description_mode ?? (settings?.card_show_description === false ? 'hidden' : 'always')}
                   cardIconShowTitle={settings?.card_icon_show_title ?? true}
                   canSort={isAuthenticated}
+                  controlledSortMode={homeSortMode}
+                  sortGroup="home-bookmark-categories"
+                  sortCategoryId={selectedCategory.id}
+                  showSortActions={false}
                   onAddBookmark={onOpenCreateBookmark}
                   onEditBookmark={onEditBookmark}
-                  onSortBookmarks={onSortBookmarksInCategory}
+                  onRequestSort={startHomeSort}
+                  onCancelSortSession={cancelHomeSort}
+                  onSaveSortSession={saveHomeSort}
+                  onSortDraft={handleHomeSortDraft}
+                  onSortTransfer={handleHomeSortTransfer}
                 />
               </div>
             </section>
@@ -462,6 +543,16 @@
       {/if}
     </main>
   </div>
+
+  {#if homeSortMode}
+    <div class="home-sort-bar" role="toolbar" aria-label="跨分类排序操作">
+      <span>正在排序：可将书签拖到其他分类，完成后保存。</span>
+      <button type="button" class="home-sort-cancel" on:click={cancelHomeSort} disabled={homeSortSaving}>取消</button>
+      <button type="button" class="home-sort-save" on:click={saveHomeSort} disabled={homeSortSaving}>
+        {homeSortSaving ? '保存中…' : '保存排序'}
+      </button>
+    </div>
+  {/if}
 
   {#if settings?.footer_html}
     <footer class="home-footer">
@@ -639,6 +730,57 @@
 
   .search-section-list {
     gap: 1.2rem;
+  }
+
+  .home-sort-bar {
+    position: fixed;
+    z-index: 20;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    max-width: calc(100vw - 2rem);
+    padding: 0.55rem 0.65rem 0.55rem 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--home-text-color, #0f172a);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(14px);
+    font-size: 0.84rem;
+    font-weight: 650;
+  }
+
+  .home-sort-bar button {
+    min-height: 2rem;
+    padding: 0.3rem 0.72rem;
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    border-radius: 0.6rem;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .home-sort-cancel {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .home-sort-save {
+    border-color: rgba(14, 165, 233, 0.38) !important;
+    background: #0ea5e9;
+    color: white !important;
+  }
+
+  .home-sort-bar button:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+  }
+
+  :global([data-theme='dark']) .home-sort-bar {
+    border-color: rgba(148, 163, 184, 0.28);
+    background: rgba(15, 23, 42, 0.86);
   }
 
   .home-footer {
