@@ -151,9 +151,20 @@ publicRoutes.get('/public/data', async (c) => {
 
     c.set('username', session.username)
     privateAccessAllowed = true
+  } else if (token) {
+    // 公开模式下，普通访客无需登录；但携带有效管理员会话时，额外返回私密书签。
+    // 无效 token 不应被当作管理员会话使用，避免旧会话或伪造请求混淆权限。
+    const session = await validateSession(c.env, token)
+    if (!session) return unauthorizedResponse()
+    c.set('username', session.username)
+    privateAccessAllowed = true
   }
 
-  const publicDataSource = await getPublicDataSource(c.env.DB, cachedSiteConfig ? undefined : siteConfig)
+  const publicDataSource = await getPublicDataSource(
+    c.env.DB,
+    cachedSiteConfig ? undefined : siteConfig,
+    privateAccessAllowed,
+  )
   const publicSettings = publicDataSource.settings
   if (!publicSettings.public_mode && !privateAccessAllowed) {
     if (!token) {
