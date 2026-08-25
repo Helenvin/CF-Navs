@@ -28,6 +28,7 @@ export type AdminBookmarkSummary = {
   description_mode?: 'always' | 'hover' | 'hidden' | null
   open_method?: 'same_tab' | 'new_tab' | 'modal'
   click_count?: number
+  is_private?: boolean
 }
 
 export type SettingsFormValue = Pick<
@@ -69,6 +70,7 @@ export function toAdminBookmarks(bookmarks: Bookmark[]): AdminBookmarkSummary[] 
     description_mode: bookmark.description_mode ?? null,
     open_method: bookmark.open_method === 2 ? 'same_tab' : bookmark.open_method === 3 ? 'modal' : 'new_tab',
     click_count: bookmark.click_count ?? 0,
+    is_private: bookmark.is_private === true || bookmark.is_private === 1,
   }))
 }
 
@@ -88,6 +90,7 @@ export function toPublicBookmark(bookmark: Bookmark): PublicBookmark {
     open_method: bookmark.open_method,
     sort: bookmark.sort,
     click_count: bookmark.click_count ?? 0,
+    is_private: bookmark.is_private === true || bookmark.is_private === 1,
   }
 }
 

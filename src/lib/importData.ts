@@ -174,6 +174,7 @@ function prepareSunPanelImport(parsed: unknown): PreparedImport {
         icon_blob: null,
         description: readString(rawBookmark.description).trim() || null,
         open_method: sunPanelOpenMethodToCFNavs(rawBookmark.openMethod),
+        is_private: false,
         sort: readNumber(rawBookmark.sort, bookmarkIndex),
         created_at: now,
       })
@@ -305,6 +306,7 @@ export function prepareBrowserBookmarkHtml(text: string): PreparedImport {
       icon_background_color: null, icon_blob: safeIcon?.startsWith('data:') ? safeIcon : null,
       description: null, description_mode: null,
       open_method: 1, sort, created_at: Number(attribute(tag, 'ADD_DATE')) ? Number(attribute(tag, 'ADD_DATE')) * 1000 : now,
+      is_private: false,
     })
   }
 

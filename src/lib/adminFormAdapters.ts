@@ -30,6 +30,7 @@ export function toBookmarkPayload(form: BookmarkFormValue): BookmarkUpsertReq {
     description: form.description.trim() || null,
     description_mode: form.description_mode === 'inherit' ? null : form.description_mode,
     open_method: form.open_method === 'same_tab' ? 2 : form.open_method === 'modal' ? 3 : 1,
+    is_private: form.is_private,
   }
 }
 
@@ -54,5 +55,6 @@ export function toBookmarkForm(bookmark: Bookmark | PublicBookmark): BookmarkFor
     description: bookmark.description ?? '',
     description_mode: bookmark.description_mode ?? 'inherit',
     open_method: bookmark.open_method === 2 ? 'same_tab' : bookmark.open_method === 3 ? 'modal' : 'new_tab',
+    is_private: bookmark.is_private === true || bookmark.is_private === 1,
   }
 }
