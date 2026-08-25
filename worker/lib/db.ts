@@ -25,6 +25,7 @@ export {
   deleteBookmark,
   batchDeleteBookmarks,
   sortBookmarks,
+  reorganizeBookmarks,
   setIconBlob,
   incrementBookmarkClick,
   type BookmarkIconData,
