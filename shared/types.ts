@@ -337,6 +337,14 @@ export interface SortReq {
   ids: number[]
 }
 
+/** 首页跨分类拖拽后，按分类提交完整的书签顺序。 */
+export interface BookmarkReorganizeReq {
+  category_orders: Array<{
+    category_id: number
+    ids: number[]
+  }>
+}
+
 export interface CategorySortReq extends SortReq {
   parent_id: number | null
 }
