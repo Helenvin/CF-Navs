@@ -135,6 +135,45 @@ export async function sortBookmarks(db: D1Database, ids: number[]): Promise<void
   await sortRowsByIds(db, 'bookmarks', ids)
 }
 
+export async function reorganizeBookmarks(
+  db: D1Database,
+  categoryOrders: Array<{ category_id: number; ids: number[] }>,
+): Promise<void> {
+  const categoryIds = new Set<number>()
+  const bookmarkToCategory = new Map<number, number>()
+
+  for (const order of categoryOrders) {
+    if (categoryIds.has(order.category_id)) throw new Error('duplicate category order')
+    categoryIds.add(order.category_id)
+    for (const id of order.ids) {
+      if (bookmarkToCategory.has(id)) throw new Error('duplicate bookmark order')
+      bookmarkToCategory.set(id, order.category_id)
+    }
+  }
+
+  const { results: categories } = await db.prepare('SELECT id FROM categories').all<{ id: number }>()
+  const { results: bookmarks } = await db.prepare('SELECT id FROM bookmarks').all<{ id: number }>()
+
+  const existingCategoryIds = new Set((categories ?? []).map((category) => category.id))
+  if ([...categoryIds].some((id) => !existingCategoryIds.has(id))) throw new Error('category not found')
+
+  const existingBookmarkIds = new Set((bookmarks ?? []).map((bookmark) => bookmark.id))
+  if (existingBookmarkIds.size !== bookmarkToCategory.size || [...existingBookmarkIds].some((id) => !bookmarkToCategory.has(id))) {
+    throw new Error('bookmark order must include every bookmark')
+  }
+
+  const updates = [...bookmarkToCategory].map(([bookmarkId, categoryId]) => (
+    db.prepare('UPDATE bookmarks SET category_id = ? WHERE id = ?').bind(categoryId, bookmarkId)
+  ))
+  for (let start = 0; start < updates.length; start += 50) {
+    await db.batch(updates.slice(start, start + 50))
+  }
+
+  for (const order of categoryOrders) {
+    await sortRowsByIds(db, 'bookmarks', order.ids)
+  }
+}
+
 export async function setIconBlob(db: D1Database, id: number, blob: string | null): Promise<void> {
   await db
     .prepare("UPDATE bookmarks SET icon_blob = ? WHERE id = ?")
