@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition'
   import {
     type Bookmark,
+    type BookmarkReorganizeReq,
     type Category,
     type ChangePasswordReq,
     type ThemeMode,
@@ -877,6 +878,14 @@
     })
   }
 
+  async function handleReorganizeBookmarks(
+    categoryOrders: BookmarkReorganizeReq['category_orders'],
+  ): Promise<void> {
+    bookmarkError = ''
+    await api.bookmarks.reorganize(categoryOrders)
+    await refreshAdminDataAfterMutation()
+  }
+
   // 首页按分类内拖拽排序：只给出该分类内的新顺序，这里据此重建“全量有序 id 列表”，
   // 仅替换该分类占据的槽位，其它书签位置保持不变，从而保持全局 sort 与后台平铺表一致。
   async function handleSortBookmarksInCategory(
@@ -994,6 +1003,7 @@
           onOpenCreateBookmark={handleOpenCreateBookmark}
           onEditBookmark={handleEditBookmark}
           onSortBookmarksInCategory={handleSortBookmarksInCategory}
+          onReorganizeBookmarks={handleReorganizeBookmarks}
           onSwitchToAdmin={handleSwitchToAdmin}
           onLogout={handleLogout}
           onOpenLogin={handleOpenLogin}
