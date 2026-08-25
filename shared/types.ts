@@ -25,6 +25,7 @@ export interface Bookmark {
   description: string | null
   description_mode?: DescriptionDisplayMode | null
   open_method: 1 | 2 | 3 // 1=新窗口 2=当前页 3=当前页弹层
+  is_private?: boolean | number // 公开书签为 0/false，私密书签为 1/true
   sort: number
   click_count?: number
   created_at: number
@@ -298,6 +299,7 @@ export interface BookmarkUpsertReq {
   description?: string | null
   description_mode?: DescriptionDisplayMode | null
   open_method?: 1 | 2 | 3
+  is_private?: boolean
 }
 
 // GET /api/fetch-favicon?url=...
