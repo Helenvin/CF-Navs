@@ -21,6 +21,7 @@ export interface BookmarkWriteValue {
   description: string | null
   description_mode?: DescriptionDisplayMode | null
   open_method?: 1 | 2 | 3
+  is_private?: boolean
 }
 
 export type BookmarkPayloadResult =
@@ -43,7 +44,8 @@ export function parseBookmarkUpsertPayload(body: BookmarkUpsertReq | null): Book
     (body.icon_source !== undefined &&
       body.icon_source !== null &&
       !ICON_SOURCES.includes(body.icon_source)) ||
-    (body.open_method !== undefined && !OPEN_METHODS.includes(body.open_method))
+    (body.open_method !== undefined && !OPEN_METHODS.includes(body.open_method)) ||
+    (body.is_private !== undefined && typeof body.is_private !== 'boolean')
   ) {
     return { ok: false, message: 'invalid bookmark payload' }
   }
@@ -69,6 +71,9 @@ export function parseBookmarkUpsertPayload(body: BookmarkUpsertReq | null): Book
         ? { description_mode: body.description_mode }
         : {}),
       open_method: body.open_method,
+      ...(Object.prototype.hasOwnProperty.call(body, 'is_private')
+        ? { is_private: body.is_private === true }
+        : {}),
     },
   }
 }
