@@ -17,6 +17,7 @@ export function normalizeImportCategory(c: Category, now: number): Category {
 
 export function normalizeImportBookmark(b: Bookmark, now: number): Bookmark {
   const openMethod = b.open_method === 2 ? 2 : b.open_method === 3 ? 3 : 1
+  const hasPrivateFlag = Object.prototype.hasOwnProperty.call(b, 'is_private')
   return {
     id: b.id,
     category_id: b.category_id,
@@ -29,6 +30,7 @@ export function normalizeImportBookmark(b: Bookmark, now: number): Bookmark {
     description: b.description ?? null,
     description_mode: b.description_mode ?? null,
     open_method: openMethod,
+    ...(hasPrivateFlag ? { is_private: b.is_private === true || b.is_private === 1 } : {}),
     sort: Number.isFinite(b.sort) ? b.sort : 0,
     created_at: b.created_at || now,
   }

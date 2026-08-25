@@ -39,11 +39,11 @@ export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Pr
       .prepare(
         `INSERT INTO bookmarks (
            category_id, title, url, icon, icon_source, icon_background_color,
-           description, description_mode, open_method, sort, created_at
+           description, description_mode, open_method, is_private, sort, created_at
          )
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
          WHERE EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, click_count, created_at`,
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, is_private, sort, click_count, created_at`,
       )
       .bind(
         req.category_id,
@@ -55,6 +55,7 @@ export async function createBookmark(db: D1Database, req: BookmarkUpsertReq): Pr
         req.description ?? null,
         req.description_mode ?? null,
         open_method,
+        req.is_private ? 1 : 0,
         req.category_id,
         now,
         req.category_id,
@@ -91,9 +92,10 @@ export async function updateBookmark(
              icon_background_color = ?,
              description = ?,
              description_mode = CASE WHEN ? = 0 THEN description_mode ELSE ? END,
-             open_method = COALESCE(?, open_method)
+             open_method = COALESCE(?, open_method),
+             is_private = ?
          WHERE id = ? AND EXISTS (SELECT 1 FROM categories WHERE id = ?)
-         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, sort, click_count, created_at`,
+         RETURNING id, category_id, title, url, icon, icon_source, icon_background_color, icon_blob, description, description_mode, open_method, is_private, sort, click_count, created_at`,
       )
       .bind(
         req.category_id,
@@ -110,6 +112,7 @@ export async function updateBookmark(
         hasDescriptionMode ? 1 : 0,
         req.description_mode ?? null,
         openMethod,
+        req.is_private ? 1 : 0,
         id,
         req.category_id,
       )
