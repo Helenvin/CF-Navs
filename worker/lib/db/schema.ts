@@ -58,6 +58,9 @@ export async function ensureSchema(db: D1Database, force = false): Promise<void>
   if (!categoryColNames.has("parent_id")) {
     stmts.push(db.prepare("ALTER TABLE categories ADD COLUMN parent_id INTEGER"))
   }
+  if (!categoryColNames.has("is_private")) {
+    stmts.push(db.prepare("ALTER TABLE categories ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"))
+  }
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_global ON bookmarks(sort, id)"))
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_categories_sort_id ON categories(sort, id)"))
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_categories_parent_sort_id ON categories(parent_id, sort, id)"))

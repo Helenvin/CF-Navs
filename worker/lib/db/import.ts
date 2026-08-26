@@ -21,8 +21,8 @@ export async function importData(
   stmts.push(db.prepare('DELETE FROM categories'))
 
   for (const chunk of chunkImportRows(importedCategories, 16)) {
-    stmts.push(db.prepare(`INSERT INTO categories (id, parent_id, title, icon, sort, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`)
-      .bind(...chunk.flatMap((category) => [category.id, category.parent_id, category.title, category.icon, category.sort, category.created_at])))
+    stmts.push(db.prepare(`INSERT INTO categories (id, parent_id, title, icon, is_private, sort, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ')}`)
+      .bind(...chunk.flatMap((category) => [category.id, category.parent_id, category.title, category.icon, category.is_private === true || category.is_private === 1 ? 1 : 0, category.sort, category.created_at])))
   }
 
   for (const chunk of chunkImportRows(importedBookmarks, 7)) {

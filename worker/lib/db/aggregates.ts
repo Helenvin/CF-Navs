@@ -37,12 +37,44 @@ export async function getPublicDataSource(db: D1Database, siteConfig?: SiteConfi
       db.prepare(includePrivate ? PRIVATE_BOOKMARK_LIST_SQL : PUBLIC_BOOKMARK_LIST_SQL),
     ])
 
+    const allCategories = (categoriesResult.results ?? []) as PublicCategory[]
+    const visibleCategoryIds = includePrivate
+      ? null
+      : getPublicCategoryIds(allCategories)
+    const allBookmarks = (bookmarksResult.results ?? []) as PublicBookmark[]
+
     return {
-      categories: (categoriesResult.results ?? []) as PublicCategory[],
-      bookmarks: (bookmarksResult.results ?? []) as PublicBookmark[],
+      categories: visibleCategoryIds ? allCategories.filter((category) => visibleCategoryIds.has(category.id)) : allCategories,
+      bookmarks: visibleCategoryIds ? allBookmarks.filter((bookmark) => visibleCategoryIds.has(bookmark.category_id)) : allBookmarks,
       settings: settingsFromRows((settingsResult.results ?? []) as Array<{ key: string; value: string | null }>, siteConfig),
     }
   })
+}
+
+function getPublicCategoryIds(categories: PublicCategory[]): Set<number> {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  const visible = new Set<number>()
+
+  for (const category of categories) {
+    let current: PublicCategory | undefined = category
+    let hidden = false
+    const visited = new Set<number>()
+    while (current) {
+      if (visited.has(current.id)) {
+        hidden = true
+        break
+      }
+      visited.add(current.id)
+      if (current.is_private === true || current.is_private === 1) {
+        hidden = true
+        break
+      }
+      current = current.parent_id == null ? undefined : byId.get(current.parent_id)
+    }
+    if (!hidden) visible.add(category.id)
+  }
+
+  return visible
 }
 
 export async function getAdminData(db: D1Database): Promise<AdminData> {
