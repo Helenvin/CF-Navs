@@ -8,6 +8,7 @@ export interface Category {
   parent_id: number | null
   title: string
   icon: string | null
+  is_private?: boolean | number // 公开分类为 0/false，私密分类为 1/true
   sort: number
   created_at: number
 }
@@ -286,6 +287,7 @@ export interface CategoryUpsertReq {
   title: string
   icon?: string | null
   parent_id?: number | null
+  is_private?: boolean
 }
 
 // POST/PUT 书签
