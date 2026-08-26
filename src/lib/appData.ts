@@ -12,6 +12,7 @@ export type AdminCategorySummary = {
   icon?: string
   sort?: number
   bookmarkCount?: number
+  is_private?: boolean
 }
 
 export type AdminBookmarkSummary = {
@@ -52,6 +53,7 @@ export function toAdminCategories(categories: Category[], bookmarks: Bookmark[])
     icon: category.icon ?? '',
     sort: category.sort,
     bookmarkCount: bookmarkCountByCategory.get(category.id) ?? 0,
+    ...(category.is_private === true || category.is_private === 1 ? { is_private: true } : {}),
   }))
 }
 

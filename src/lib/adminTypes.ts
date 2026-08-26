@@ -10,6 +10,7 @@ export type CategoryFormValue = {
   parent_id: string | number | null
   title: string
   icon: string
+  is_private?: boolean
 }
 
 export type BookmarkFormValue = {

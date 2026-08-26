@@ -14,6 +14,7 @@ export function toCategoryPayload(form: CategoryFormValue): CategoryUpsertReq {
     title: form.title.trim(),
     icon: form.icon.trim() || null,
     parent_id: form.parent_id == null || form.parent_id === '' ? null : Number(form.parent_id),
+    ...(form.is_private === undefined ? {} : { is_private: form.is_private === true }),
   }
 }
 
@@ -40,6 +41,7 @@ export function toCategoryForm(category: Category): CategoryFormValue {
     parent_id: category.parent_id,
     title: category.title,
     icon: category.icon ?? '',
+    is_private: category.is_private === true || category.is_private === 1,
   }
 }
 
