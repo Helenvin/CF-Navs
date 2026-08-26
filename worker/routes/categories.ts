@@ -51,7 +51,9 @@ categoriesRoutes.get('/', async (c) => {
 categoriesRoutes.post('/', async (c) => {
   const body = await readJson<CategoryUpsertReq>(c)
   const parentId = parseParentId(body?.parent_id)
-  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) || (body.parent_id !== undefined && parentId === undefined)) {
+  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) ||
+      (body.parent_id !== undefined && parentId === undefined) ||
+      (body.is_private !== undefined && typeof body.is_private !== 'boolean')) {
     return badRequest(c, 'invalid category payload')
   }
 
@@ -60,6 +62,7 @@ categoriesRoutes.post('/', async (c) => {
       title: body.title.trim(),
       icon: body.icon ?? null,
       parent_id: parentId ?? null,
+      is_private: body.is_private === true,
     })
     await touchDataVersion(c.env.DB)
     invalidateRuntimeDataCache()
@@ -76,7 +79,9 @@ categoriesRoutes.put('/:id', async (c) => {
 
   const body = await readJson<CategoryUpsertReq>(c)
   const parentId = parseParentId(body?.parent_id)
-  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) || (body.parent_id !== undefined && parentId === undefined)) {
+  if (!body || !isNonEmptyString(body.title) || !isOptionalString(body.icon) ||
+      (body.parent_id !== undefined && parentId === undefined) ||
+      (body.is_private !== undefined && typeof body.is_private !== 'boolean')) {
     return badRequest(c, 'invalid category payload')
   }
 
@@ -85,6 +90,7 @@ categoriesRoutes.put('/:id', async (c) => {
       title: body.title.trim(),
       icon: body.icon ?? null,
       parent_id: body.parent_id === undefined ? undefined : parentId,
+      is_private: body.is_private,
     })
     if (!category) return c.json(fail(ErrCode.NOT_FOUND, 'category not found'))
     await touchDataVersion(c.env.DB)
