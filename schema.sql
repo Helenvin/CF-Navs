@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS categories (
   parent_id   INTEGER,                    -- NULL=一级分类，非空=所属一级分类
   title       TEXT NOT NULL,
   icon        TEXT,                       -- 图标 URL（可填 cftc 直链）
+  is_private  INTEGER NOT NULL DEFAULT 0,-- 0=访客可见 1=仅登录可见
   sort        INTEGER NOT NULL DEFAULT 0,
   created_at  INTEGER NOT NULL
 );
