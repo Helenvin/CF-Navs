@@ -55,6 +55,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('site_title_color', '""'),
   ('site_title_font_size', '32'),
   ('public_mode', 'true'),
+  ('browser_sync_enabled', 'false'),
   ('theme', '"light"'),
   ('background_preset_id', '"ocean-depths"'),
   ('background', '{"type":"gradient","value":"radial-gradient(circle at 16% 12%, rgba(56, 189, 248, 0.5), transparent 44%), radial-gradient(circle at 84% 18%, rgba(45, 212, 191, 0.42), transparent 46%), radial-gradient(circle at 52% 96%, rgba(147, 197, 253, 0.46), transparent 50%), linear-gradient(145deg, #eff9ff 0%, #e7f5fe 46%, #e9f9f8 100%)","blur":0,"mask":0.06,"maskColor":"#ffffff"}'),
