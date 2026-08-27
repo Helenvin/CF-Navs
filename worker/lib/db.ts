@@ -46,3 +46,9 @@ export {
 } from './db/settings'
 
 export { importData } from './db/import'
+
+export {
+  BROWSER_SYNC_CATEGORY_TITLE,
+  ensureBrowserSyncCategory,
+  syncBrowserBookmarks,
+} from './db/browserSync'
