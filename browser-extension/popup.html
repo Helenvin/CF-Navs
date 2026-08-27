@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CF-Navs 书签同步</title>
+    <style>
+      body { width: 320px; margin: 0; padding: 16px; color: #172033; font: 14px/1.5 Arial, sans-serif; background: #f5f8fc; }
+      h1 { margin: 0 0 12px; font-size: 18px; }
+      label { display: block; margin: 10px 0 4px; font-weight: 600; }
+      input { width: 100%; box-sizing: border-box; padding: 8px 9px; border: 1px solid #cbd5e1; border-radius: 7px; }
+      button { margin-top: 14px; width: 100%; padding: 9px; border: 0; border-radius: 7px; color: white; background: #2563eb; cursor: pointer; }
+      button.secondary { color: #1e40af; background: #dbeafe; }
+      .hint { margin: 8px 0 0; color: #64748b; font-size: 12px; }
+      #status { min-height: 22px; margin-top: 10px; color: #475569; }
+    </style>
+  </head>
+  <body>
+    <h1>CF-Navs 书签同步</h1>
+    <p class="hint">浏览器新增书签会单向进入“浏览器新增收藏”，不会删除导航页书签。</p>
+    <label for="baseUrl">导航页地址</label>
+    <input id="baseUrl" type="url" placeholder="https://hao.example.com">
+    <label for="username">管理员账号</label>
+    <input id="username" type="text" autocomplete="username">
+    <label for="password">管理员密码</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button id="login">登录并开启同步</button>
+    <button id="disable" class="secondary" type="button">暂停同步并清除会话</button>
+    <div id="status" role="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
