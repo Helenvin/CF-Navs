@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
 import { ErrCode } from '../shared/types'
 import { withAssetCacheHeaders } from './lib/assetHeaders'
+import { corsHeaders, corsPreflight } from './lib/cors'
 import { fail, ok } from './lib/response'
 import { authRequired } from './middleware/auth'
 import adminRoutes from './routes/admin'
 import authRoutes from './routes/auth'
 import bookmarksRoutes from './routes/bookmarks'
+import browserSyncRoutes from './routes/browserSync'
 import categoriesRoutes from './routes/categories'
 import dataRoutes from './routes/data'
 import errorReportRoutes from './routes/errorReport'
@@ -20,6 +22,9 @@ const app = new Hono<HonoEnv>()
 
 app.get('/api/health', (c) => c.json(ok({ status: 'ok' })))
 
+// Chromium 扩展从 chrome-extension:// 来源调用登录和同步接口，需要预检响应。
+app.options('/api/login', () => corsPreflight())
+app.use('/api/login', corsHeaders)
 app.route('/api', authRoutes)
 app.route('/api', installRoutes)
 app.route('/api', publicRoutes)
@@ -36,6 +41,12 @@ app.route('/api/categories', categoriesRoutes)
 app.use('/api/bookmarks', authRequired)
 app.use('/api/bookmarks/*', authRequired)
 app.route('/api/bookmarks', bookmarksRoutes)
+
+app.options('/api/browser-sync/bookmarks', () => corsPreflight())
+app.use('/api/browser-sync', corsHeaders)
+app.use('/api/browser-sync', authRequired)
+app.use('/api/browser-sync/*', authRequired)
+app.route('/api/browser-sync', browserSyncRoutes)
 
 app.use('/api/fetch-favicon', authRequired)
 // 精确路径中间件，没有通配符：新增同文件路由时必须补一行，否则接口是公开的。
