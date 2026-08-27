@@ -127,6 +127,7 @@ export interface Settings {
   site_title_color: string
   site_title_font_size: number
   public_mode: boolean
+  browser_sync_enabled: boolean
   theme: ThemeMode
   background_preset_id: BackgroundPresetId
   background: BackgroundSetting // 兼容旧版本：新逻辑优先使用 backgrounds
@@ -302,6 +303,23 @@ export interface BookmarkUpsertReq {
   description_mode?: DescriptionDisplayMode | null
   open_method?: 1 | 2 | 3
   is_private?: boolean
+}
+
+// POST /api/browser-sync/bookmarks —— 浏览器扩展单向同步
+export interface BrowserSyncBookmark {
+  title: string
+  url: string
+}
+
+export interface BrowserSyncReq {
+  bookmarks: BrowserSyncBookmark[]
+}
+
+export interface BrowserSyncResp {
+  category_id: number
+  category_title: string
+  created: number
+  skipped: number
 }
 
 // GET /api/fetch-favicon?url=...
