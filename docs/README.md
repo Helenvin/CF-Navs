@@ -8,7 +8,7 @@
 - [完整部署指南](guides/DEPLOYMENT.md)
 - [常见问题排查](guides/TROUBLESHOOTING.md)
 - [Sun-Panel 数据导入](guides/SUNPANEL_IMPORT.md)
-- [浏览器书签 HTML 导入](guides/BROWSER_BOOKMARK_IMPORT.md)
+
 
 ## 技术参考
 
@@ -18,6 +18,10 @@
 - [分类层级设计](reference/CATEGORY_HIERARCHY_DESIGN.md)
 - [性能契约](reference/PERFORMANCE_CONTRACT.md)
 - [性能测试](reference/PERFORMANCE_TESTING.md)
+
+## 发布与变更记录
+
+- [变更记录](../CHANGELOG.md)
 
 ## 开发计划与决策记录
 
