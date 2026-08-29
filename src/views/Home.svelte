@@ -341,6 +341,7 @@
 
 <div
   class="home-shell"
+  data-cf-navs-site="1"
   class:top-navigation-layout={isTopNavigation}
   class:persistent-left-navigation={navigation.position === 'left' && navigation.always_expanded && persistentLeftExpanded}
   style={homeShellStyle}

@@ -340,6 +340,7 @@
           bind:categoryId={form.category_id}
           bind:title={form.title}
           bind:url={form.url}
+          bind:internalUrl={form.internal_url}
           bind:openMethod={form.open_method}
           bind:isPrivate={form.is_private}
           bind:description={form.description}

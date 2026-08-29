@@ -39,6 +39,8 @@
   class:sort-mode={sortMode}
   class:preview-light={preview && themeOverride === 'light'}
   href={preview ? undefined : bookmark.url}
+  data-cf-navs-internal-url={bookmark.internal_url ?? ''}
+  data-cf-navs-open-method={bookmark.open_method ?? 1}
   target={!preview && openInNewTab ? '_blank' : undefined}
   rel={!preview && openInNewTab ? 'noopener noreferrer' : undefined}
   tabindex={preview ? -1 : undefined}
