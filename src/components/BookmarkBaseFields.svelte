@@ -6,6 +6,7 @@
   export let categoryId: string | number | undefined = undefined
   export let title = ''
   export let url = ''
+  export let internalUrl = ''
   export let openMethod: BookmarkFormValue['open_method'] = 'new_tab'
   export let isPrivate = false
   export let description = ''
@@ -45,6 +46,16 @@
     required
     on:blur={() => onUrlBlur?.()}
   />
+</label>
+
+<label class="field-compact">
+  <span>内网地址（可选）</span>
+  <input
+    bind:value={internalUrl}
+    type="url"
+    placeholder="http://192.168.1.100:8080/"
+  />
+  <small class="field-help">安装 CF-Navs 扩展并能连通内网时，会优先使用此地址。</small>
 </label>
 
 <label class="field-compact">
@@ -124,6 +135,12 @@
   }
 
   .privacy-field small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .field-help {
     color: #64748b;
     font-size: 11px;
     line-height: 1.45;
