@@ -25,6 +25,7 @@ function isValidCategory(value: unknown): value is Category {
     value.title.trim().length > 0 &&
     (value.parent_id === undefined || value.parent_id === null || (Number.isInteger(value.parent_id) && Number(value.parent_id) > 0)) &&
     (value.icon === null || value.icon === undefined || typeof value.icon === 'string')
+    && (value.is_private === undefined || value.is_private === true || value.is_private === false || value.is_private === 0 || value.is_private === 1)
   )
 }
 
@@ -39,7 +40,8 @@ function isValidBookmark(value: unknown): value is Bookmark {
     value.title.trim().length > 0 &&
       typeof value.url === 'string' &&
     value.url.trim().length > 0 &&
-    (value.description_mode === null || value.description_mode === undefined || value.description_mode === 'always' || value.description_mode === 'hover' || value.description_mode === 'hidden')
+    (value.description_mode === null || value.description_mode === undefined || value.description_mode === 'always' || value.description_mode === 'hover' || value.description_mode === 'hidden') &&
+    (value.is_private === undefined || value.is_private === true || value.is_private === false || value.is_private === 0 || value.is_private === 1)
   )
 }
 

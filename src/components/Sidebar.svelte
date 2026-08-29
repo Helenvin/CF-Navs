@@ -960,7 +960,12 @@
     display: grid;
     gap: 6px;
     overflow-y: auto;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .toc-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .toc-group {

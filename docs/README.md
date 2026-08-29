@@ -27,6 +27,7 @@
 
 - [平台优化（加载 / 安全 / 冗余 / UI / 结构）](plans/PLATFORM_OPTIMIZATION_PLAN.md)
 - [后台管理移动端布局](plans/ADMIN_MOBILE_LAYOUT_PLAN.md)
+- [PR #7 合并检查（私密书签 / 跨分类排序 / 浏览器书签同步）](plans/PR7_MERGE_REVIEW_PLAN.md)
 
 ## 图片
 

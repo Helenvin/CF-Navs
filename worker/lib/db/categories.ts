@@ -17,7 +17,7 @@ export async function listCategories(db: D1Database): Promise<Category[]> {
 export async function getCategory(db: D1Database, id: number): Promise<Category | null> {
   await ensureSchema(db)
   return await db
-    .prepare('SELECT id, parent_id, title, icon, sort, created_at FROM categories WHERE id = ?')
+    .prepare('SELECT id, parent_id, title, icon, is_private, sort, created_at FROM categories WHERE id = ?')
     .bind(id)
     .first<Category>()
 }
@@ -51,12 +51,12 @@ export async function createCategory(db: D1Database, req: CategoryUpsertReq): Pr
 
   const category = await db
     .prepare(
-      `INSERT INTO categories (parent_id, title, icon, sort, created_at)
-       SELECT ?, ?, ?, COALESCE(MAX(sort), -1) + 1, ?
+      `INSERT INTO categories (parent_id, title, icon, is_private, sort, created_at)
+       SELECT ?, ?, ?, ?, COALESCE(MAX(sort), -1) + 1, ?
        FROM categories WHERE parent_id IS ?
-       RETURNING id, parent_id, title, icon, sort, created_at`,
+       RETURNING id, parent_id, title, icon, is_private, sort, created_at`,
     )
-    .bind(parentId, req.title, req.icon ?? null, now, parentId)
+    .bind(parentId, req.title, req.icon ?? null, req.is_private === true ? 1 : 0, now, parentId)
     .first<Category>()
 
   if (!category) throw new Error('failed to create category')
@@ -76,23 +76,32 @@ export async function updateCategory(
   if (parentId !== current.parent_id) await validateCategoryParent(db, parentId, id)
 
   if (parentId === current.parent_id) {
+    if (req.is_private === undefined) {
+      return await db
+        .prepare(
+          'UPDATE categories SET title = ?, icon = ? WHERE id = ? RETURNING id, parent_id, title, icon, is_private, sort, created_at',
+        )
+        .bind(req.title, req.icon ?? null, id)
+        .first<Category>()
+    }
+
     return await db
       .prepare(
-        'UPDATE categories SET title = ?, icon = ? WHERE id = ? RETURNING id, parent_id, title, icon, sort, created_at',
+        'UPDATE categories SET title = ?, icon = ?, is_private = COALESCE(?, is_private) WHERE id = ? RETURNING id, parent_id, title, icon, is_private, sort, created_at',
       )
-      .bind(req.title, req.icon ?? null, id)
+      .bind(req.title, req.icon ?? null, req.is_private === undefined ? null : (req.is_private === true ? 1 : 0), id)
       .first<Category>()
   }
 
   return await db
     .prepare(
       `UPDATE categories
-       SET parent_id = ?, title = ?, icon = ?,
+       SET parent_id = ?, title = ?, icon = ?, is_private = COALESCE(?, is_private),
            sort = (SELECT COALESCE(MAX(sort), -1) + 1 FROM categories WHERE parent_id IS ? AND id <> ?)
        WHERE id = ?
-       RETURNING id, parent_id, title, icon, sort, created_at`,
+       RETURNING id, parent_id, title, icon, is_private, sort, created_at`,
     )
-    .bind(parentId, req.title, req.icon ?? null, parentId, id, id)
+    .bind(parentId, req.title, req.icon ?? null, req.is_private === undefined ? null : (req.is_private === true ? 1 : 0), parentId, id, id)
     .first<Category>()
 }
 

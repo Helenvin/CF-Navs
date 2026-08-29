@@ -5,6 +5,7 @@ export const SETTINGS_KEYS = [
   'site_title_color',
   'site_title_font_size',
   'public_mode',
+  'browser_sync_enabled',
   'theme',
   'background_preset_id',
   'background',

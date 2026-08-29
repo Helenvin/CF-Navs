@@ -1,5 +1,4 @@
-# 本地开发用环境变量（wrangler dev 会自动读取），勿提交。
-# 复制为 .dev.vars 并填写。
+# 本地开发环境变量示例（可提交）。复制为 .dev.vars 后填写；勿提交填写后的 .dev.vars。
 # /install 使用的一次性安装令牌；生产环境请保存为加密 Secret。
 SETUP_TOKEN = "replace-with-a-long-random-local-setup-token"
 # 以下变量仅用于旧数据库升级/凭据恢复兼容；全新本地或 CLI 安装请使用上方 SETUP_TOKEN 和 /install。
@@ -7,4 +6,4 @@ SETUP_TOKEN = "replace-with-a-long-random-local-setup-token"
 # INIT_ADMIN_PASSWORD = "replace-with-a-legacy-recovery-password"
 # Optional: set a new value to force a one-time credential reset.
 # RESET_ADMIN_CREDENTIALS = "reset-local-1"
-SESSION_TTL = "604800"
+SESSION_TTL = "2592000"  # 与 wrangler.toml 默认值一致：30 天

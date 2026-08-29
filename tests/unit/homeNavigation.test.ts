@@ -117,6 +117,17 @@ describe('home navigation helpers', () => {
     expect(resolveActiveHomeRootId(new Map(), 96)).toBeNull()
   })
 
+  it('excludes private bookmarks from most-visited results', () => {
+    const items = [
+      { ...bookmark(1, 1), click_count: 4, is_private: true },
+      { ...bookmark(2, 1), click_count: 3, is_private: 1 },
+      { ...bookmark(3, 1), click_count: 2, is_private: false },
+      { ...bookmark(4, 1), click_count: 1 },
+    ]
+
+    expect(getMostVisitedBookmarks(items, 10).map((item) => item.id)).toEqual([3, 4])
+  })
+
   it('selects positive most-visited bookmarks without mutating the source', () => {
     const items = [
       { ...bookmark(4, 1), sort: 0, click_count: 0 },

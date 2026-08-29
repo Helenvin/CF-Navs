@@ -12,6 +12,7 @@ export type AdminCategorySummary = {
   icon?: string
   sort?: number
   bookmarkCount?: number
+  is_private?: boolean
 }
 
 export type AdminBookmarkSummary = {
@@ -28,11 +29,12 @@ export type AdminBookmarkSummary = {
   description_mode?: 'always' | 'hover' | 'hidden' | null
   open_method?: 'same_tab' | 'new_tab' | 'modal'
   click_count?: number
+  is_private?: boolean
 }
 
 export type SettingsFormValue = Pick<
   Settings,
-  'site_title' | 'site_title_color' | 'site_title_font_size' | 'public_mode' | 'theme' | 'background_preset_id' | 'custom_css' | 'custom_js' | 'image_host_url' | 'background' | 'backgrounds' | 'search_engine' | 'card_size' | 'card_style' | 'card_icon_size' | 'card_show_description' | 'card_description_mode' | 'card_background_color' | 'card_background_opacity' | 'card_icon_show_title' | 'card_text_color' | 'search_box_show' | 'search_engine_selector_show' | 'content_layout' | 'navigation' | 'footer_html' | 'most_visited_count' | 'site_title_show'
+  'site_title' | 'site_title_color' | 'site_title_font_size' | 'public_mode' | 'browser_sync_enabled' | 'theme' | 'background_preset_id' | 'custom_css' | 'custom_js' | 'image_host_url' | 'background' | 'backgrounds' | 'search_engine' | 'card_size' | 'card_style' | 'card_icon_size' | 'card_show_description' | 'card_description_mode' | 'card_background_color' | 'card_background_opacity' | 'card_icon_show_title' | 'card_text_color' | 'search_box_show' | 'search_engine_selector_show' | 'content_layout' | 'navigation' | 'footer_html' | 'most_visited_count' | 'site_title_show'
 >
 
 export function toAdminCategories(categories: Category[], bookmarks: Bookmark[]): AdminCategorySummary[] {
@@ -51,6 +53,7 @@ export function toAdminCategories(categories: Category[], bookmarks: Bookmark[])
     icon: category.icon ?? '',
     sort: category.sort,
     bookmarkCount: bookmarkCountByCategory.get(category.id) ?? 0,
+    ...(category.is_private === true || category.is_private === 1 ? { is_private: true } : {}),
   }))
 }
 
@@ -69,6 +72,7 @@ export function toAdminBookmarks(bookmarks: Bookmark[]): AdminBookmarkSummary[] 
     description_mode: bookmark.description_mode ?? null,
     open_method: bookmark.open_method === 2 ? 'same_tab' : bookmark.open_method === 3 ? 'modal' : 'new_tab',
     click_count: bookmark.click_count ?? 0,
+    is_private: bookmark.is_private === true || bookmark.is_private === 1,
   }))
 }
 
@@ -88,6 +92,7 @@ export function toPublicBookmark(bookmark: Bookmark): PublicBookmark {
     open_method: bookmark.open_method,
     sort: bookmark.sort,
     click_count: bookmark.click_count ?? 0,
+    is_private: bookmark.is_private === true || bookmark.is_private === 1,
   }
 }
 
@@ -103,6 +108,7 @@ export function toSettingsForm(settings: Settings | null): SettingsFormValue | n
     site_title_color: settings.site_title_color,
     site_title_font_size: settings.site_title_font_size,
     public_mode: settings.public_mode,
+    browser_sync_enabled: settings.browser_sync_enabled,
     theme: settings.theme,
     background_preset_id: settings.background_preset_id,
     custom_css: settings.custom_css,

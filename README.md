@@ -30,16 +30,27 @@
 
 | | 能力 | 说明 |
 |---|---|---|
-| ☁️ | 边缘全栈 | 前端、API、D1 数据库与 KV 会话均运行在 Cloudflare，无需自建服务器 |
+| ☁️ | 边缘全栈 | 前端、API、D1 数据库与 KV 限流/撤销状态均运行在 Cloudflare，无需自建服务器 |
 | 🧭 | 导航首页 | 所有一级分组同时展示，组内二级分类横向切换；支持按书签标题、URL、描述和完整分类路径搜索，并提供一致的左侧、顶部和移动端层级导航 |
 | 🏠 | 首页设置 | 管理员可配置站点标题与是否显示标题、搜索框和搜索引擎选择器，设置首页“经常访问”区域展示数量（可关闭），并在保存前通过实时预览检查未保存配置 |
 | 🛠️ | 后台管理 | 一级/二级分类编辑移动、根级分页、同级排序、删除保护和完整路径书签管理；设置页集中管理站点信息、外观、布局、导航、搜索、页脚脚本与账号安全 |
+| 🔒 | 私密书签 | 新增或编辑书签时可标记为“私密链接（仅登录可见）”；普通访客不会收到私密书签数据，管理员登录后可正常浏览和管理 |
+| 🗂️ | 私密分类 | 分类可设置为“访客不可见（仅登录可见）”；访客不会看到该分类、子分类及其中的书签，管理员登录后仍可正常管理 |
+| ↕️ | 跨分类排序 | 管理员可直接在首页进入排序模式，将书签从分类 A 拖到分类 B，也可以调整分类内顺序；点击“保存排序”后统一提交，取消则不修改数据 |
+| 🔄 | 浏览器书签同步 | 可在后台开启单向同步；Chrome/Edge 扩展将之后新增的书签统一放入“浏览器新增收藏”，不改变现有分类，也不会删除导航页书签 |
 | 📊 | 访问分析 | 首页书签点击会累计访问次数，后台提供总点击、已访问/零访问书签统计、最常访问 Top 20 排行和零访问书签分页列表；进入分析页时会刷新最新数据 |
 | 🎨 | 外观定制 | 22 套内置主题、亮暗模式、背景、遮罩、卡片尺寸、透明度与图标大小设置；支持自定义页脚 HTML、CSS 和 JavaScript，CSS 与页脚可在隔离预览中检查 |
 | 🔎 | 搜索与图标 | 全站分组搜索、可配置的外部搜索引擎，以及书签 Favicon / Iconify 与分类图片、文字和表情图标展示 |
 | 💾 | 数据迁移 | JSON 备份与恢复，支持 Sun-Panel 数据和浏览器书签 HTML 导入 |
 | 🔐 | 安全认证 | PBKDF2 密码哈希、Bearer Session Token、严格 CSP、管理员接口鉴权与登录失败限流 |
 | ⚡ | 加载优化 | 代码分割、边缘缓存、本地快照、图标懒加载与基础 PWA 离线回退；后台直达刷新不会先闪现首页 |
+
+### 书签隐私与跨分类排序
+
+- **私密链接**：管理员在新增或编辑书签时勾选“设为私密链接（仅登录可见）”。未登录访客的公开数据接口会过滤这类书签；管理员登录后仍可在首页和后台查看、编辑与删除。
+- **私密分类**：管理员在后台编辑分类时勾选“访客不可见（仅登录可见）”。未登录访客不会收到该分类、其子分类及其中书签的数据；管理员登录后仍可正常查看和管理。旧分类默认保持访客可见。
+- **跨分类拖拽**：管理员登录后，在首页任意分类点击“排序”，页面会进入统一排序会话。将书签拖入其他分类即可完成归类，同时可以调整目标分类中的位置；点击底部“保存排序”后一次性保存分类和顺序，点击“取消”则放弃本次修改。
+- **浏览器书签同步**：在后台“设置 → 站点设置”开启“浏览器书签同步”后，会自动创建“浏览器新增收藏”分类。安装 [`browser-extension`](browser-extension/) 中的 Chrome/Edge 扩展并登录后，浏览器之后新增的网页书签会统一同步到该分类，并按默认图标策略保存 `https://favicon.im/<hostname>?larger=true` 图标候选。扩展不按浏览器收藏夹文件夹创建导航分类，只做“浏览器 → 导航页”单向新增，不删除或反向覆盖导航页已有书签；整理时可直接在首页排序模式中拖到其他分类。
 
 ## 界面预览
 
@@ -82,7 +93,7 @@ CF-Navs 需要以下 Cloudflare 资源：
 | 资源 | 绑定名 | 用途 |
 |---|---|---|
 | D1 Database | `DB` | 保存设置、分类和书签 |
-| KV Namespace | `SESSION` | 保存管理员会话 |
+| KV Namespace | `SESSION` | 登录限流、点击限流和会话撤销名单 |
 | Secret | `SETUP_TOKEN` | 手动配置，授权首次安装 |
 
 ### 方式一：Cloudflare 控制台部署（推荐）
@@ -100,9 +111,6 @@ CF-Navs 需要以下 Cloudflare 资源：
 
    首次部署后应能看到这两个绑定。如果出现 missing binding 或资源创建权限错误，先确认部署来自 `main`、Cloudflare 当前选择的是正确账号，并查看[故障排查](docs/guides/TROUBLESHOOTING.md)；不要在没有确认账号和资源的情况下重复创建数据库或 KV。
 
-<p align="center">
-  <img src="docs/screenshots/cf-deploy3.jpg" alt="在 Cloudflare Worker 中添加 SETUP_TOKEN 密钥" width="100%">
-</p>
 
 5. 第一次生产部署完成后，在 Worker 的 **设置 → 变量和密钥** 中选择**生产环境**，配置 `SETUP_TOKEN`：
    - 如果列表中已经有 Cloudflare 自动生成的 `SETUP_TOKEN`，请编辑它并替换为你自己保存的值，然后在 **设置 → 构建** 中执行一次**清理缓存**。
@@ -202,6 +210,7 @@ CF-Navs/
 ├── worker/              # Worker 路由、中间件与 D1 数据访问
 ├── shared/              # 前后端共享类型与设置契约
 ├── public/              # 图标、PWA 与其他静态资源
+├── browser-extension/   # Chrome/Edge 浏览器新增书签同步扩展
 ├── tests/               # Vitest 单元与回归测试
 ├── docs/                # 使用指南、技术参考与截图
 ├── scripts/             # 开发、部署与审计脚本
@@ -216,9 +225,9 @@ CF-Navs/
 | 名称 | 类型 | 必需 | 说明 |
 |---|---|---|---|
 | `DB` | D1 binding | 是 | 数据库绑定 |
-| `SESSION` | KV binding | 是 | 会话存储绑定 |
+| `SESSION` | KV binding | 是 | 登录/点击限流和会话撤销名单存储 |
 | `SETUP_TOKEN` | Secret | 首次安装 | 授权 `/install`，安装成功后建议删除或轮换 |
-| `SESSION_TTL` | Variable | 否 | 会话有效期，默认 `604800` 秒 |
+| `SESSION_TTL` | Variable | 否 | 会话有效期，`wrangler.toml` 默认 `2592000` 秒（30 天）；未设置时 Worker 回退为 7 天 |
 | `INIT_ADMIN_USER` | Variable | 否 | 仅用于旧数据库升级或凭据恢复 |
 | `INIT_ADMIN_PASSWORD` | Secret | 否 | 仅用于旧数据库升级或凭据恢复 |
 | `RESET_ADMIN_CREDENTIALS` | Variable | 否 | 旧数据库强制重置凭据时使用的一次性标记 |
@@ -247,9 +256,9 @@ CF-Navs/
 
 <a href="https://www.star-history.com/?repos=lbjxr%2FCF-Navs&type=date&legend=top-left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa">
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa">
-    <img alt="CF-Navs Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left&sealed_token=Bf0GixdoBy-NMTywqMqPjVOrUUv5wDjqFB3rty7IYwn3OWau-UR3vdmWDYXDWQW1IkKWhzCs3IdPJZSTzqzcLlYyj1O4-effSpu5AUbhdCU-IbGV378MUn1OG5wkDgP-PGjyaVTEZBtzdp0P_CrCf5ZzZwmcEBDnnUIL-bX1PhN3Mc0vMlATyNrA-TRa">
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&theme=dark&legend=top-left">
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left">
+    <img alt="CF-Navs Star History Chart" src="https://api.star-history.com/chart?repos=lbjxr/CF-Navs&type=date&legend=top-left">
   </picture>
 </a>
 

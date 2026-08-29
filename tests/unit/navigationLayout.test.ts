@@ -93,4 +93,13 @@ describe('navigation layout helpers', () => {
     expect(source).toContain('handleTopMenuKeyDown')
     expect(source).toContain('closeTopMenu(true)')
   })
+
+  it('hides native sidebars scrollbars without disabling vertical scrolling', () => {
+    const source = readFileSync('src/components/Sidebar.svelte', 'utf8')
+
+    expect(source).toContain('overflow-y: auto;')
+    expect(source).toContain('scrollbar-width: none;')
+    expect(source).toContain('.toc-nav::-webkit-scrollbar')
+    expect(source).toContain('display: none;')
+  })
 })

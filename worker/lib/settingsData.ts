@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   site_title_color: '',
   site_title_font_size: 32,
   public_mode: true,
+  browser_sync_enabled: false,
   theme: 'light',
   background_preset_id: 'ocean-depths',
   background: {

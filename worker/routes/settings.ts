@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { BUILTIN_BACKGROUND_PRESET_IDS, ErrCode, type Settings, type SettingsUpdateReq } from '../../shared/types'
 import { SETTINGS_KEYS } from '../../shared/settings'
 import { invalidatePublicDataCache, invalidateSiteConfigCache } from '../lib/cache'
-import { getSettings, settingsFromPatchDefaults, touchDataVersion, updateSettings, writeSettingsPatch } from '../lib/db'
+import { ensureBrowserSyncCategory, getSettings, settingsFromPatchDefaults, touchDataVersion, updateSettings, writeSettingsPatch } from '../lib/db'
 import { fail, ok } from '../lib/response'
 import { badRequest, readJson } from '../lib/routeHelpers'
 import { findSettingsLengthError } from '../lib/settingsLimits'
@@ -58,6 +58,9 @@ settingsRoutes.put('/', async (c) => {
   }
   if (body.public_mode !== undefined && typeof body.public_mode !== 'boolean') {
     return badRequest(c, 'invalid public_mode')
+  }
+  if (body.browser_sync_enabled !== undefined && typeof body.browser_sync_enabled !== 'boolean') {
+    return badRequest(c, 'invalid browser_sync_enabled')
   }
   if (body.site_title !== undefined && typeof body.site_title !== 'string') {
     return badRequest(c, 'invalid site_title')
@@ -168,6 +171,9 @@ settingsRoutes.put('/', async (c) => {
 
   try {
     const settingsPatch: SettingsUpdateReq = { ...body }
+    if (body.browser_sync_enabled === true) {
+      await ensureBrowserSyncCategory(c.env.DB)
+    }
     if (body.card_description_mode !== undefined) {
       settingsPatch.card_show_description = body.card_description_mode === 'always'
     } else if (body.card_show_description !== undefined) {

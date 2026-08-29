@@ -76,11 +76,11 @@ Cloudflare Secret 生效可能需要等待片刻。执行重置前请确认 Wran
 
 ### KV 相关错误
 
-登录会话依赖 `SESSION` KV 命名空间。请检查：
+`SESSION` KV 不保存登录会话本身。登录使用无状态 JWT；该命名空间用于登录/点击限流和 JWT 撤销名单。请检查：
 
 1. `npx wrangler kv namespace create SESSION` 是否已执行。
 2. `npm run setup:wrangler` 是否已生成最新绑定。
-3. Worker 日志中是否出现 KV binding 错误。
+3. Worker 日志中是否出现 KV binding 错误；KV 缺失会影响限流和登出撤销，JWT 本身仍按签名和 `exp` 校验。
 
 查看日志：
 

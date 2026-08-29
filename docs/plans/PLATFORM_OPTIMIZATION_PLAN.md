@@ -210,36 +210,34 @@ SW 侧对收到的清单再校验一次同源和 `/assets/` 前缀，逐个 `cac
 
 ### S1 — 退出登录真正失效 token（P0）
 
-**证据**
+**整改前历史证据（非当前实现）**
 
-会话已经从 KV 存储改成无状态 JWT：`worker/lib/session.ts:13-24` 用 `signJwt` 生成 token，`worker/middleware/auth.ts:69-98` 的 `validateSession` 只做签名校验和 `exp` 检查，不再读 KV。
+会话从 KV 存储迁移为无状态 JWT 后，初始实现只用 `signJwt` 生成 token，`validateSession` 只做签名和 `exp` 校验，不读 KV。
 
-而 `worker/routes/auth.ts:75-81` 的 logout 只做了：
+当时 `logout` 只清理当前 isolate 的内存缓存：
 
 ```ts
 authRoutes.post('/logout', authRequired, async (c) => {
   const token = extractBearerToken(c.req.header('Authorization'))
-  if (token) clearCachedSession(token)      // 只清当前 isolate 的内存缓存
+  if (token) clearCachedSession(token)
   return c.json(ok(null))
 })
 ```
 
-`clearCachedSession` 删除的是 `sessionMemoryCache`（15 秒 TTL 的 isolate 内缓存）。**JWT 本身在 `exp` 之前一直有效，默认 7 天**。也就是说退出登录之后，之前那个 token 仍然可以调用全部后台接口。
+当时的风险是：JWT 在 `exp` 之前继续有效，退出登录无法影响共享设备或已泄露的旧 token；全局失效手段只有 `rotateJwtSecret`。
 
-目前唯一的全局失效手段是 `rotateJwtSecret`（修改密码或凭据重置时触发），它会把所有会话一起废掉。
+**当前实现**
 
-**风险场景**：共享设备上退出登录、或怀疑 token 已泄漏时点退出登录，实际都不产生任何撤销效果。
+当前 `worker/lib/sessionRevocation.ts` 使用完整 token 的 SHA-256 摘要作为 `revoked:<sha256>` key，不使用 JWT 内的 `jti` 作为 key。撤销 TTL 为 `max(60 秒, token 剩余寿命)`；撤销检查受单个 isolate 的 15 秒缓存窗口影响。logout 的 KV 写入失败时接口仍完成但撤销未落库，后续鉴权请求的 KV 读取失败可能返回错误。
 
-**做法**
+**历史做法与验收记录**
 
-给 JWT 增加 `jti`（`crypto.randomUUID()`），logout 时向 KV 写入 `revoked:<jti>`，TTL 设为该 token 剩余有效期；`validateSession` 在签名校验通过后检查该 key。
-
-成本控制：撤销检查只在 isolate 内存缓存未命中时执行，即每个 isolate 每 15 秒最多一次 KV 读，与现有 session 缓存的成本模型一致。KV 条目在 token 自然过期时随 TTL 消失，不会累积。
+历史方案曾提出把 `jti` 直接作为撤销 key；实际落地改为 token 摘要，以兼容旧 token 并避免将 token 内容暴露在 KV key 中。原始验收中的 TTL「不超过剩余寿命」已按 KV 60 秒硬下限修正为上述 `max(60 秒, 剩余寿命)` 语义。
 
 **验收**
 
 - 新增单测：登录得到 token → 校验通过 → logout → 同一 token 再校验返回 `null`。
-- 新增单测：撤销记录的 KV TTL 不超过 token 剩余有效期。
+- 新增单测：撤销记录的 KV TTL 使用 `max(60 秒, token 剩余寿命)`。
 - 新增单测：未 logout 的其它 token 不受影响。
 - `scripts/smoke-test.mjs` 增加断言：logout 后用旧 token 请求 `/api/admin/data` 返回 401。
 - 同步更新 `docs/reference/API_CONTRACT.md` 的鉴权规则章节。
@@ -253,7 +251,7 @@ authRoutes.post('/logout', authRequired, async (c) => {
 - 用 **token 的 SHA-256 摘要**而不是 `jti` 做撤销 key。这样对签发本次改动之前的老 token 同样有效，不需要把用户踢下线一次；而且 KV 被 dump 时不会连带泄露一批仍在有效期内的 token。
 - TTL 取 token 剩余寿命（下限 60 秒，KV 的硬性下限），过期后墓碑自动消失，不会累积。
 - 撤销检查只在 isolate 内存缓存未命中时走 KV，成本模型与既有的 15 秒 session 缓存一致。**代价是别的 isolate 上的 logout 最多 15 秒后才生效**，这个窗口是刻意换来的，已在测试和文档里写明。
-- KV 不可用时 logout 仍返回成功：前端照常清本地登录态，token 只是回到改动前的状态，不会更糟。
+- logout 的 KV 写入失败时仍返回成功：前端照常清本地登录态，但撤销未落库，token 会继续有效到 `exp`；后续鉴权的 KV 读取失败可能返回错误。
 
 **写测试时发现了另一个真实缺陷**：`createSession` 的 JWT payload 只有 `{ username, exp }`，同一毫秒内的两次登录会签出**逐字节相同的 token**——撤销其中一个等于把两个都撤销了，「退出这台设备」的语义根本不成立。已加 `jti: crypto.randomUUID()`。老 token 缺 `jti` 不影响校验（只读 `username` / `exp`），所以向后兼容。
 
@@ -517,17 +515,17 @@ Worker 侧 `worker/routes/bookmarks.ts:70-71`（POST）与 `:114-115`（PUT）�
 
 **证据**
 
-会话机制已改为 JWT，但文档仍描述为 KV 会话：
+会话机制已改为 JWT；以下是 S8 整改前的文档误差记录（历史引用，当前说明已按实现修正）：
 
-- `docs/reference/API_CONTRACT.md:14`：「`authRequired`：读取 Bearer token，查 KV session；无效时返回 401。」实际是签名校验，不读 KV。
-- `docs/reference/PROJECT_OVERVIEW.md:288`：「Session token 随机生成」，实际是 HS256 JWT，密钥存在 `settings.jwt_secret`。
-- `docs/reference/PROJECT_OVERVIEW.md:252`：「Worker 认证中间件在单个 isolate 内短时复用已验证 session，后台连续操作不必每个请求都读取 KV」——现在根本不读 KV。
+- `docs/reference/API_CONTRACT.md` 当时把 `authRequired` 描述为查 KV session；实际认证路径是 JWT 签名/过期校验，KV 只参与撤销名单检查。
+- `docs/reference/PROJECT_OVERVIEW.md` 当时把 Session token 描述为随机生成并写入 KV；实际是 HS256 无状态 JWT，密钥存在 `settings.jwt_secret`。
+- `docs/reference/PROJECT_OVERVIEW.md` 当时把认证中间件描述为复用 KV session；实际是单个 isolate 内缓存已验证 JWT，KV 用于限流和撤销名单。
 
-安全机制的文档失准会直接误导后续改动，必须一起修正。
+这些历史误差会直接误导后续改动，因此已经在当前文档中更正。
 
 **做法**
 
-把上述三处改写为真实实现，并说明 KV `SESSION` 当前只用于登录限流（`rl:login:*`）与点击计数限流（`rl:click:*`）。S1 落地后补充撤销机制说明。
+把上述三处改写为真实实现，并说明 KV `SESSION` 当前用于登录限流（`rl:login:*`）、点击计数限流（`rl:click:*`）和会话撤销名单（`revoked:*`）。S1 落地后补充撤销机制、15 秒跨 isolate 缓存窗口、KV 写入失败和读取失败行为。
 
 **验收**：文档描述与 `worker/middleware/auth.ts`、`worker/lib/session.ts`、`worker/lib/jwt.ts` 逐条对应；`git diff --check` 无空白问题。
 
@@ -804,9 +802,9 @@ S1 里已经顺手删掉的 `SESSION_PREFIX` / `getSessionKey`（改用 JWT 后�
 
 ## 五、文件结构
 
-### 结论：整体健康，只有一处需要处理
+### 结论：整体健康，F1 历史问题已完成
 
-291 个 tracked 文件，目录划分清晰（`src/` / `worker/` / `shared/` / `public/` / `scripts/` / `tests/` / `docs/`）。检查未发现构建产物、密钥、本地配置或个人数据进入版本库：`.gitignore` 已覆盖 `dist/`、`.wrangler/`、`.dev.vars`、`wrangler.local.toml`、`verify.local.json`、`.claude/`、`.codex/`、`.agents/`、`AGENTS.md`、`_archive/*`、`tmp/`、`docs/history|local|drafts/`。`docs/screenshots/` 下 6 张图片全部被 README 或部署指南引用，无孤儿文件。
+当前 tracked 文件仍按 `src/` / `worker/` / `shared/` / `public/` / `scripts/` / `tests/` / `docs/` 分层；`.gitignore` 覆盖 `dist/`、`.wrangler/`、`.dev.vars`、`wrangler.local.toml`、`verify.local.json`、`.claude/`、`.codex/`、`.agents/`、`AGENTS.md`、`_archive/*`、`tmp/`、`docs/history|local|drafts/`。含安装令牌示例和过期配置的部署截图已移除；`docs/screenshots/` 当前保留的图片均应由公开文档引用。
 
 ### F1 — 归档已完成的移动端布局计划（P2）
 
@@ -814,7 +812,7 @@ S1 里已经顺手删掉的 `SESSION_PREFIX` / `getSessionKey`（改用 JWT 后�
 
 **做法**：在文首加一行完成状态与对应提交号；或移入已忽略的 `docs/history/`。建议前者——保留决策记录对后续维护有价值。
 
-注意：该文件当前在工作区有**未提交的本地修改**（浏览器验证记录）。这部分与本轮优化无关，按 `AGENTS.md` 的要求不纳入本轮任何提交。
+注意：上述“工作区有未提交的本地修改”是当时实施阶段的历史记录，不代表当前工作树状态。
 
 **验收**：`docs/plans/` 下每个文件的状态与实际代码一致；`docs/README.md` 的目录说明无需改动。
 
@@ -822,7 +820,7 @@ S1 里已经顺手删掉的 `SESSION_PREFIX` / `getSessionKey`（改用 JWT 后�
 
 在 `ADMIN_MOBILE_LAYOUT_PLAN.md` 文首加了状态块，注明实现对应的两个提交，并说明第 6.1 节记录的是**实施前的现状勘察**而不是遗留待办——这是最容易被误读的一段。文件保留在 `docs/plans/`，决策记录对后续维护有价值。
 
-工作区里那份未提交的本地修改（浏览器验证记录）与本轮无关，按 `AGENTS.md` 的要求没有纳入任何改动。
+上述工作区里的未提交本地修改属于历史上下文，没有纳入优化提交；当前状态以现场 Git 检查为准。
 
 ### 不做的事
 

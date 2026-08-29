@@ -49,11 +49,17 @@ export async function ensureSchema(db: D1Database, force = false): Promise<void>
   if (!bookmarkColNames.has("description_mode")) {
     stmts.push(db.prepare("ALTER TABLE bookmarks ADD COLUMN description_mode TEXT"))
   }
+  if (!bookmarkColNames.has("is_private")) {
+    stmts.push(db.prepare("ALTER TABLE bookmarks ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"))
+  }
   if (!bookmarkColNames.has("click_count")) {
     stmts.push(db.prepare("ALTER TABLE bookmarks ADD COLUMN click_count INTEGER DEFAULT 0"))
   }
   if (!categoryColNames.has("parent_id")) {
     stmts.push(db.prepare("ALTER TABLE categories ADD COLUMN parent_id INTEGER"))
+  }
+  if (!categoryColNames.has("is_private")) {
+    stmts.push(db.prepare("ALTER TABLE categories ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0"))
   }
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort_global ON bookmarks(sort, id)"))
   stmts.push(db.prepare("CREATE INDEX IF NOT EXISTS idx_categories_sort_id ON categories(sort, id)"))

@@ -17,9 +17,6 @@
 3. 生产分支选择 `main`，Build command 填写 `npm run build`，Deploy command 填写 `npx wrangler deploy`。
 4. 保存并完成首轮生产部署。Cloudflare 的 Git 引导流程会根据 `wrangler.toml` 中不带 ID 的声明创建并绑定 `DB` D1 数据库与 `SESSION` KV 命名空间。
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/lbjxr/CF-Navs/main/docs/screenshots/cf-deploy3.jpg" alt="在 Cloudflare Worker 中添加 SETUP_TOKEN 密钥" width="100%">
-</p>
 
 5. 首轮部署完成后，进入该 Worker 的 **设置 → 变量和密钥**，选择**生产环境**，添加一个类型为**密钥**的变量，变量名填写 `SETUP_TOKEN`，值填写一段足够长且随机的字符串。
 6. 保存 Secret 后重新触发生产分支部署。打开部署后的 Workers URL，并访问 `/install`。输入 `SETUP_TOKEN`，再设置管理员用户名和密码；安装器会初始化数据库 schema 和管理员账号。
@@ -158,7 +155,7 @@ Cloudflare Git 和 Wrangler CLI 全新安装都先访问 `/install`，输入 `SE
 - [ ] 手动输入纯文字或表情图标后保存，首页显示该自定义图标，而不是回退为书签标题首字
 - [ ] 新增/编辑书签弹窗内容过高时可在弹窗内滚动，保存按钮始终可见
 - [ ] 选中一种图标后保存，图标显示正常；选择 Favicon.im、Google favicon 或自定义 HTTP(S) 图标时，即使 `/api/bookmarks/:id/icon-cache/refresh` 没有生成 `icon_blob`，首页也会回退到已保存图标 URL，而不是显示标题首字
-- [ ] 分类列表每页显示 10 个一级分类，子分类默认折叠且可由父级箭头展开；书签列表每页显示 10 条。普通模式下面板高度贴合当前页内容且底部无明显空白；排序模式显示对应作用域的全量列表并可在面板内滚动
+- [ ] 分类列表每页显示 10 个一级分类，子分类默认折叠且可由父级箭头展开；展开后左侧导航可继续滚动但不显示突兀的原生白色滚动条。书签列表每页显示 10 条。普通模式下面板高度贴合当前页内容且底部无明显空白；排序模式显示对应作用域的全量列表并可在面板内滚动
 - [ ] 首页同时展示所有一级分类的直属书签；每个一级标题下的二级分类横向标签只切换该分组内容，左侧/移动导航和分类树选择器默认隐藏子分类，当前选中或搜索路径按需展开
 - [ ] 首页一级标题、二级标签、搜索分组和折叠导航均显示分类自定义图片、Iconify、data URI、文字或表情图标；图片失败时保留稳定的文字回退
 - [ ] 首页顶部内容统计和分类下站点数量文字在浅色/深色主题、渐变背景和自定义卡片文字色下对比度正常

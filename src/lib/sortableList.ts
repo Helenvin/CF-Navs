@@ -18,9 +18,21 @@ type SortableDomEvent = {
   oldIndex?: number
   newIndex?: number
   from: HTMLElement
+  to: HTMLElement
+  item: HTMLElement
 }
 
 export type SortHandler = (orderedIds: Array<string | number>) => void | Promise<void>
+
+export type SortTransfer = {
+  itemId: string | number
+  fromCategoryId: number | null
+  toCategoryId: number | null
+  sourceIds: Array<string | number>
+  targetIds: Array<string | number>
+}
+
+export type SortTransferHandler = (transfer: SortTransfer) => void | Promise<void>
 
 export type SortableListOptions = {
   /** 是否启用拖拽（关闭时会销毁实例） */
@@ -29,6 +41,10 @@ export type SortableListOptions = {
   onSort?: SortHandler
   /** 仅允许通过带该属性的元素发起拖拽，例如 "[data-drag-handle]"；不传则整项可拖 */
   handle?: string
+  /** 同一组的多个列表可以相互放置，适合跨分类移动书签 */
+  group?: string
+  /** 跨列表移动完成后的回调 */
+  onTransfer?: SortTransferHandler
 }
 
 let sortableModulePromise: Promise<SortableModule> | null = null
@@ -50,6 +66,13 @@ const readDomOrder = (container: HTMLElement): Array<string | number> =>
       return Number.isFinite(numeric) && raw !== '' ? numeric : raw
     })
     .filter((value) => value !== '')
+
+const readCategoryId = (container: HTMLElement): number | null => {
+  const value = container.dataset.sortCategoryId
+  if (!value) return null
+  const id = Number(value)
+  return Number.isInteger(id) ? id : null
+}
 
 /**
  * 通用拖拽排序 action。
@@ -91,6 +114,7 @@ export const sortableList = (
       easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
       draggable: '[data-sortable-item]',
       handle: options.handle,
+      group: options.group ? { name: options.group, pull: true, put: true } : undefined,
       // 关键：不启用 fallbackOnBody，保持拖拽项留在原容器内。
       forceFallback: true,
       fallbackOnBody: false,
@@ -102,7 +126,23 @@ export const sortableList = (
       onEnd: async (event: SortableDomEvent) => {
         const { oldIndex, newIndex, from } = event
 
-        if (oldIndex == null || newIndex == null || oldIndex === newIndex || !options.onSort) {
+        if (oldIndex == null || newIndex == null) {
+          return
+        }
+
+        if (from !== event.to) {
+          if (!options.onTransfer) return
+          await options.onTransfer({
+            itemId: readDomOrder(event.to).find((id) => String(id) === event.item.dataset.sortId) ?? event.item.dataset.sortId ?? '',
+            fromCategoryId: readCategoryId(from),
+            toCategoryId: readCategoryId(event.to),
+            sourceIds: readDomOrder(from),
+            targetIds: readDomOrder(event.to),
+          })
+          return
+        }
+
+        if (oldIndex === newIndex || !options.onSort) {
           return
         }
 
@@ -121,7 +161,9 @@ export const sortableList = (
       const shouldRebuild =
         nextOptions.enabled !== options.enabled ||
         nextOptions.onSort !== options.onSort ||
-        nextOptions.handle !== options.handle
+        nextOptions.handle !== options.handle ||
+        nextOptions.group !== options.group ||
+        nextOptions.onTransfer !== options.onTransfer
       options = nextOptions
       if (shouldRebuild) {
         void initSortable()

@@ -71,26 +71,6 @@ export function buildPublicDataAfterCategoryDelete(
   }
 }
 
-export function buildOrderedBookmarkIdsForCategory<T extends SortableRow & { category_id: number }>(
-  bookmarks: T[],
-  categoryId: number,
-  orderedIdsInCategory: number[],
-): number[] {
-  const newOrderQueue = orderedIdsInCategory.map((id) => Number(id))
-  let queueIndex = 0
-
-  return [...bookmarks]
-    .sort((a, b) => a.sort - b.sort || a.id - b.id)
-    .map((bookmark) => {
-      if (bookmark.category_id === categoryId) {
-        const replacement = newOrderQueue[queueIndex] ?? bookmark.id
-        queueIndex += 1
-        return replacement
-      }
-      return bookmark.id
-    })
-}
-
 export function upsertCategory(categories: Category[], category: Category): Category[] {
   return upsertById(categories, category)
 }

@@ -75,6 +75,19 @@
       />
     </div>
 
+    <div class="toggle-field field-toggle" data-testid="browser-sync-setting">
+      <label class="toggle-copy" for="settings-browser-sync">
+        <span>浏览器书签同步</span>
+        <p>开启后，浏览器扩展新增的书签会单向同步到“浏览器新增收藏”分类；不会删除或覆盖导航页现有书签。</p>
+      </label>
+      <input
+        id="settings-browser-sync"
+        bind:checked={form.browser_sync_enabled}
+        on:change={() => void syncForm()}
+        type="checkbox"
+      />
+    </div>
+
     <div class="field field-theme">
       <span class="field-label">默认主题模式</span>
       <div class="segmented-control" role="radiogroup" aria-label="默认主题模式">

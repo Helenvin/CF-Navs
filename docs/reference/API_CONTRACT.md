@@ -12,9 +12,9 @@
 
 ## 鉴权规则
 
-- `authRequired`：读取 Bearer token，用 `settings.jwt_secret` 校验 HS256 签名和 `exp`；再查 KV 撤销名单；任一不通过返回 401。校验结果在单个 Worker isolate 内缓存 15 秒，命中缓存时不读 KV。
+- `authRequired`：读取 Bearer token，用 `settings.jwt_secret` 校验 HS256 签名和 `exp`；在 `SESSION` 绑定存在时再查 KV 撤销名单。签名、过期或撤销不通过返回 401；KV 读取故障可能由全局错误处理返回服务端错误；缺少 `SESSION` 绑定时会跳过撤销检查，部署必须正确配置该绑定。
 - 会话是无状态 JWT，payload 为 `{ username, exp, jti }`。`jti` 保证同一毫秒内的两次登录也会签出不同 token，否则「退出这台设备」会连带撤销另一台。
-- `POST /api/logout` 把当前 token 的 SHA-256 摘要写入 KV `revoked:<sha256>`，TTL 为该 token 的剩余寿命。用摘要而不是 token 本身做 key，避免 KV 被 dump 时泄露仍在有效期内的 token。**其它 isolate 上最多 15 秒后才感知到撤销**，这是内存缓存换来的固定窗口。
+- `POST /api/logout` 把当前 token 的 SHA-256 摘要写入 KV `revoked:<sha256>`，TTL 为 `max(60 秒, token 剩余寿命)`，以满足 KV `expirationTtl` 的下限。用摘要而不是 token 本身做 key，避免 KV 被 dump 时泄露仍在有效期内的 token。其它 isolate 上最多 15 秒后才感知到撤销，这是内存缓存换来的固定窗口；logout 的 KV 写入失败时接口仍完成，但撤销未落库，token 会继续有效到 `exp`。
 - 修改密码和凭据重置走 `rotateJwtSecret`，一次性作废全部会话。
 - KV `SESSION` 绑定当前只用于登录限流（`rl:login:*`）、点击计数限流（`rl:click:*`）和会话撤销名单（`revoked:*`），不再存储会话本身。
 - `/api/public/data`：匿名请求默认可查公开数据 edge cache；缓存未命中时先复用 `/api/config` edge cache，仍未命中才读取轻量 `site_title/public_mode`，公开模式关闭则要求有效 token，否则返回 `code=1005`，该轻量 1005 响应也会短时写入 edge cache。请求带 `Cache-Control: no-cache`、`Cache-Control: no-store`、`Cache-Control: max-age=0` 或 `Pragma: no-cache` 时，服务端必须绕过公开数据和站点配置 edge cache。
@@ -57,7 +57,7 @@
 
 全新部署通过 `/install` 初始化管理员：`POST /api/install` 使用 `SETUP_TOKEN` 授权，并将管理员密码通过 WebCrypto PBKDF2 哈希后以 `salt:hash` 形式存入 `settings.admin_password`。`INIT_ADMIN_USER`、`INIT_ADMIN_PASSWORD` 和初始化凭据标记仅用于已有旧数据库的升级或凭据恢复：修改兼容变量后，下一次登录会同步更新 D1 中的管理员凭据；后台账号安全修改后的密码不会被未变化的初始化变量覆盖。旧数据库可通过新的 `RESET_ADMIN_CREDENTIALS` 标记执行一次强制重置。
 `LoginResp` 包含 `token`、`expires_at` 和 `username`，前端登录成功后直接使用返回的 `username` 更新登录态并停留/返回前台首页，不再额外请求 `/api/me` 或立即预加载后台分包。登录接口会在 bootstrap 初始化时用一次 settings 查询同时读取管理员账号和密码，并复用该结果进行密码校验，避免重复读取账号/密码设置。已有登录态刷新页面时会先恢复本地 session 和可能存在的 `AdminData` 快照，再请求 `/api/data/version` 确认远端版本；版本变化时才请求 `/api/admin/data`。只有显式刷新用户信息时才需要 `/api/me`。
-`POST /api/logout` 会把当前 token 写入 KV 撤销名单，之后该 token 立即失效（同 isolate 立即生效，其它 isolate 最多 15 秒）。前端同时清除本地登录态。
+`POST /api/logout` 会尝试把当前 token 写入 KV 撤销名单，TTL 为 `max(60 秒, token 剩余寿命)`。KV 写入成功后，同一 isolate 会立即按撤销名单拒绝该 token，其它 isolate 可能因最多 15 秒的内存缓存延迟感知。若 logout 的 KV 写入失败，退出流程仍完成但 token 会继续有效到 `exp`；后续请求若 KV 读取也失败，鉴权可能返回错误。前端同时清除本地登录态。
 
 ## 后台聚合接口
 
@@ -137,7 +137,7 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 | --- | --- | --- | --- |
-| GET | `/api/fetch-favicon?url=` | 登录 | 服务端解析目标站 favicon，失败回退 Google s2 |
+| GET | `/api/fetch-favicon?url=` | 登录 | 服务端依次解析目标站 `<link rel="icon">`、Web App Manifest `icons[]`、`/favicon.ico`，失败或超时回退 `favicon.im` |
 | GET | `/api/iconify-search?query=` | 登录 | 搜索 Iconify 候选并返回预览地址 |
 | GET | `/api/icon/:id` | 无 | 书签图标代理。优先返回 Cloudflare edge cache；cache miss 时一次读取书签图标地址、标题和 D1 中缓存的 `icon_blob`；无 blob 时按书签保存的 HTTP(S) 图标地址服务端抓取并写回 D1；普通 HTTP(S) 外站抓取失败、图标缺失、非 HTTP(S) 值或缓存损坏时返回临时 SVG 文字图标，并带 `X-Icon-Fallback: 1` |
 | GET | `/api/category-icon/:id` | 无 | 分类图标代理。优先返回 Cloudflare edge cache；HTTP(S) 分类图标由 Worker 服务端抓取；外站失败或图标缺失时返回 `no-store` 临时 SVG 文字图标，并带 `X-Icon-Fallback: 1` |
@@ -145,10 +145,10 @@
 
 图标来源包括：
 
-- `direct`：服务端解析目标站 HTML 的 `<link rel="icon">`，再回退 `/favicon.ico` 和 Google。
+- `direct`：服务端解析目标站 HTML 的 `<link rel="icon">`，再解析 Web App Manifest `icons[]`，回退 `/favicon.ico`，最终回退 `https://favicon.im/{hostname}?larger=true`。
 - `favicon_im`：使用 `https://favicon.im/{hostname}?larger=true`。
 - `logo_surf`：本地生成完整标题文字 SVG data URI，支持新增/编辑书签时选择 logo.surf 风格配色；中文标题优先按两个字一行换行，长标题最多 4 行并自动缩放字号。
-- `google`：使用 Google s2 favicons 接口。
+- `google`：历史来源名称，当前实现与 Favicon.im 候选一致，使用 `https://favicon.im/{hostname}?larger=true`，参数 `size` 不再影响结果。
 - `iconify`：使用 Iconify SVG API，保存格式为 `https://api.iconify.design/{set}/{name}.svg`，例如 `mdi:home` 或 `https://icon-sets.iconify.design/mdi/home/` 会转换为 `https://api.iconify.design/mdi/home.svg`；新增/编辑弹窗会展示 Iconify 候选，候选、手动输入预览和 icon-sets 页面链接都通过 `/api/iconify/{set}/{name}.svg` 代理加载。
 - `custom`：手动填写 URL、表情、纯文字或图床地址。非 URL / 非 data URI 的值会在首页按文本图标直接渲染。
 
@@ -184,6 +184,18 @@ HTTP(S) 图标抓取成功后，代理会直接返回图片字节并写入 Cloud
 | PUT | `/api/settings` | `SettingsUpdateReq` | 更新后的 `Settings` |
 
 设置存储在 D1 `settings` 表中，`value` 为 JSON 字符串。后端读取时聚合为完整 `Settings` 对象，并对缺失字段使用默认值。后台设置面板提交完整 `Settings` 字段时，`PUT /api/settings` 写入 D1 后直接用本次提交的 payload 和默认值合成响应，避免额外回读 settings 全表；只提交部分字段的兼容请求仍会写入后读取完整 `Settings` 返回。
+
+`browser_sync_enabled` 默认值为 `false`，仅属于管理员设置，不会下发到公开设置。开启该设置时服务端会幂等创建根分类“浏览器新增收藏”；关闭时不会删除该分类或其中已有书签。
+
+## 浏览器书签同步接口
+
+全部需要登录，Chrome/Edge 扩展使用与后台相同的 Bearer Session Token。该接口只允许新增书签，不提供删除或反向同步能力。
+
+| 方法 | 路径 | 请求 | 返回 |
+| --- | --- | --- | --- |
+| POST | `/api/browser-sync/bookmarks` | `{ bookmarks: { title: string, url: string }[] }`，最多 100 条 | `{ category_id, category_title, created, skipped }` |
+
+服务端只接收 `http://` 和 `https://` 书签；重复 URL、空标题、非法 URL 或无效记录会计入 `skipped`。同步创建的书签默认写入 `https://favicon.im/<hostname>?larger=true`，`icon_source` 为 `favicon_im`，不在同步请求期间执行外部页面抓取。同步开关关闭时返回冲突错误，不会写入数据。浏览器收藏夹文件夹不会作为导航分类处理，所有记录固定写入“浏览器新增收藏”。
 
 字符串设置项有长度上限，超出返回 `code=1002` 且 msg 中包含字段名与上限值。按 Unicode 码位计数（含 emoji 的标题不会被误判）：`site_title` 200；`site_title_color` / `card_background_color` / `card_text_color` / `background.maskColor` 各 64；`image_host_url` 2048；`custom_css` / `custom_js` / `footer_html` 各 65536；`background.value` 与 `backgrounds.light|dark.value` 各 262144。背景值的上限尤其重要：它会随 `toPublicSettings` 进入每个访客的 `/api/public/data`，不限长会直接破坏性能契约中「聚合数据保持轻量」的约定。
 

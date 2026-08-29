@@ -281,6 +281,7 @@
                   <h3>{group.root.title}</h3>
                   <span class="admin-count-badge">{getAdminCategoryBookmarkCount(group.root, bookmarks)} 个直属书签</span>
                   <span class="admin-count-badge">{group.children.length} 个子分类</span>
+                  {#if group.root.is_private}<span class="admin-private-badge">仅登录可见</span>{/if}
                 </div>
                 <div class="admin-inline-actions">
                   {#if group.children.length > 1}
@@ -313,6 +314,7 @@
                         <h3>{category.title}</h3>
                         <span class="admin-parent-path">{group.root.title} / {category.title}</span>
                         <span class="admin-count-badge">{getAdminCategoryBookmarkCount(category, bookmarks)} 个直属书签</span>
+                        {#if category.is_private}<span class="admin-private-badge">仅登录可见</span>{/if}
                       </div>
                       <div class="admin-inline-actions">
                         <button type="button" class="admin-sm-button" on:click={() => onEditCategory?.(category)} disabled={!isAuthenticated}>编辑</button>
@@ -547,6 +549,17 @@
     color: var(--admin-badge-text);
     font-size: 11px;
     font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .admin-private-badge {
+    flex-shrink: 0;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, #f59e0b 16%, var(--admin-card-bg));
+    color: #b45309;
+    font-size: 11px;
+    font-weight: 600;
     white-space: nowrap;
   }
 

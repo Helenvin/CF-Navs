@@ -17,7 +17,7 @@ describe('category hierarchy visibility markup', () => {
     expect(section).toContain('export let inlineActions = false')
     expect(section).toContain('{#if showHeading || showActions}')
     expect(section).toContain('role="group"')
-    expect(section).toContain('{#if bookmarks.length > 0}')
+    expect(section).toContain('{#if bookmarks.length > 0 || activeSortMode}')
     expect(section).toContain('class:is-info-grid={cardStyle === \'info\'}')
     expect(section).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
     expect(card).toContain('--card-configured-min-width: ${Math.max(0, width)}px')
