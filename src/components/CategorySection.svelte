@@ -188,6 +188,7 @@
     </header>
   {/if}
 
+  <!-- {#if bookmarks.length > 0} is the normal public rendering branch; sorting also keeps empty categories as drop targets. -->
   {#if bookmarks.length > 0 || activeSortMode}
     <div
       class="bookmark-grid"
@@ -215,6 +216,7 @@
             width={cardWidth}
             height={cardHeight}
             canEdit={Boolean(onEditBookmark)}
+            showEditButton={Boolean(onEditBookmark) && activeSortMode}
             sortMode={activeSortMode}
             onEdit={onEditBookmark}
           />
@@ -568,3 +570,4 @@
     }
   }
 </style>
+
