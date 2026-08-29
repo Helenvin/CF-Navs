@@ -4,7 +4,7 @@
 
 - **项目类型**：个人导航面板
 - **技术栈**：Cloudflare Workers + Svelte + D1 + KV
-- **运行边界**：单 Worker 承载 API 与静态资源，D1 保存业务数据，KV 保存管理员会话
+- **运行边界**：单 Worker 承载 API 与静态资源，D1 保存业务数据，KV 保存限流状态和会话撤销名单；登录会话本身是无状态 JWT
 - **管理模型**：单管理员、可选公开首页、前后台共享设置与书签数据
 
 代码量、组件数、接口数和测试数会随版本持续变化，不在本说明中维护容易失效的静态统计；以当前源码、`package.json` 脚本和测试输出为准。
@@ -40,8 +40,11 @@
 - ✅ 前台右键编辑书签，编辑入口以卡片浮层显示
 - ✅ 新增/编辑书签弹窗内部滚动，保存按钮保持可见
 - ✅ 同级拖拽排序；分类排序请求必须提交指定父级下的完整兄弟集合
+- ✅ 首页跨分类书签拖拽排序，统一保存分类归属和全局顺序，过期状态返回冲突并恢复服务端数据
 - ✅ 分类列表按每页 10 个一级分类分页，子分类默认折叠并按父级展开；书签列表每页 10 条
+- ✅ 私密书签和私密分类，公开数据按分类祖先链过滤，管理员仍可管理
 - ✅ 多种方式获取图标（Favicon.im / 完整标题文字图标 / Google / Iconify / 自定义 URL、文字或表情）
+- ✅ 浏览器书签单向同步扩展；同步书签默认保存 favicon.im 图标候选，不执行同步时外部页面抓取
 - ✅ 文字图标读取完整标题，长标题最多自动换行 4 行，并支持新增/编辑书签时选择 logo.surf 风格配色
 - ✅ 图标代理缓存与本地缓存优先读取（Worker + D1 + Cloudflare edge cache + 浏览器本地缓存）
 - ✅ 书签列表搜索筛选
@@ -191,7 +194,7 @@ binding = "SESSION"
 
 [vars]
 INIT_ADMIN_USER = "admin"          # 仅用于旧数据库升级/凭据恢复
-SESSION_TTL = "604800"             # 会话有效期（7天）
+SESSION_TTL = "2592000"             # wrangler.toml 默认会话有效期（30天）
 ```
 
 ### package.json 脚本
@@ -276,7 +279,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 
 ### 后端
 - D1 索引优化
-- KV 会话缓存
+- KV 限流与会话撤销状态
 - Worker 边缘计算
 - `/api/config` 使用短 TTL Cloudflare edge cache，设置保存和导入后主动失效
 - `/api/data/version` 使用一次 `settings` 查询同时读取 `site_title`、`public_mode` 和内部 `data_version` 做轻量变更确认；分类、书签、排序、设置、导入和实际变化的显式图标缓存刷新都会更新版本
@@ -299,7 +302,7 @@ SESSION_TTL = "604800"             # 会话有效期（7天）
 
 - 密码使用 WebCrypto PBKDF2 哈希存储
 - 会话为 HS256 无状态 JWT，密钥保存在 `settings.jwt_secret`，payload 含 `jti` 保证每个会话 token 唯一
-- 退出登录把 token 摘要写入 KV 撤销名单并按剩余寿命设置 TTL，token 立即失效；修改密码轮换签名密钥，一次性作废全部会话
+- 退出登录会尝试把 token 摘要写入 KV 撤销名单，并按 `max(60 秒, token 剩余寿命)` 设置 TTL；KV 写入成功后，同一 isolate 会在撤销检查生效后拒绝该 token，其它 Worker isolate 可能因 15 秒内存缓存延迟感知。仅当 logout 的 KV 写入失败时，退出流程仍完成但该 token 会继续有效到 `exp`；后续请求若 KV 读取也失败，鉴权可能返回错误。修改密码轮换签名密钥，一次性作废全部会话
 - 书签地址在写入边界统一限制为 `http(s)`（`shared/urlPolicy.ts`，前后端共用），导入时缺协议的写法补成 https 保留，其余不合规条目跳过并计入 `skipped_bookmarks`
 - 后台「自定义 JS」通过 blob URL 加载而不是内联 `<script>`，因此 CSP 只需 `script-src 'self' blob:`，不含 `'unsafe-inline'`：`footer_html` 里的内联事件处理器和 `javascript:` 链接仍然被阻断
 - 覆盖导入的确认弹窗会明示备份携带的 `custom_js` / `footer_html` 及其大小，避免第三方备份静默注入可执行内容

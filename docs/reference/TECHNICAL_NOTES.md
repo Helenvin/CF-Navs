@@ -177,7 +177,7 @@ Worker 和前端共同承担缓存：
 ## 登录与会话
 
 - 管理员密码使用 WebCrypto PBKDF2 哈希存储。
-- Session token 随机生成并写入 KV。
+- Session token 以 HS256 无状态 JWT 形式签发，包含过期时间和唯一 `jti`；KV 不保存会话本身，只保存登录/点击限流状态和撤销名单。
 - 登录限流复用同一次请求已读取的 KV 状态。
 - Worker 认证中间件会在单个 isolate 内短时复用已验证 session，减少后台连续操作时的 KV 读取。
 - 前端 API 客户端会在内存中复用已解析的有效登录态，并监听跨标签页 storage 变更。

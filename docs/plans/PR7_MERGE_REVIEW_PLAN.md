@@ -4,7 +4,7 @@
 >
 > - 来源：GitHub PR #7「新增私密书签与跨分类拖拽排序功能」，作者 @Helenvin
 > - 合并基线：`d16cc0c`（`origin/develop`）
-> - 落地方式：功能内容与修复、测试和本计划以单个 squash 提交落到 `develop`（当前提交见 `git log -1`），原始 47 个提交仅保留在本地备份引用
+> - 落地方式：PR7 功能与初次审计文档先以 squash 方式落到 `develop`，之后的同步图标、Issue #8 和文档修订作为后续提交；原始 47 个提交仅保留在本地备份引用
 > - 审计时基于合并后工作树逐条核对源码，非仅读 diff
 >
 > 本文档的 P0 项已全部处理；公开图标代理的兼容性残余风险单独记录在 P2-10。
@@ -13,13 +13,13 @@
 
 PR #7 引入四组功能：书签级私密标记、分类级私密标记（含祖先链继承）、首页跨分类拖拽排序、Chrome/Edge 单向书签同步扩展。合计 52 个文件、+1142 / -58 行。
 
-合并后在工作树上的实测结果：
+合并前在工作树上的历史实测结果（保留作审计证据，不代表当前状态）：
 
 - `npm run type-check`：通过，`tsc --noEmit` 与 `svelte-check` 均 0 error 0 warning。
-- `npm test`：**1 failed / 619 passed（90 个文件中 1 个失败）**。
-- 新增功能代码 1142 行，新增测试 1 行（仅 `tests/unit/settings.test.ts` 的一个字段补齐）。
+- `npm test`：**1 failed / 619 passed（90 个文件中 1 个失败）**；失败是随后已同步的旧 markup 断言。
+- 当时 PR 新增功能代码 1142 行，新增测试 1 行；本轮后续修复和测试见当前提交记录。
 
-结论：功能设计方向正确，服务端隐私过滤的核心算法（祖先链 + 环检测）实现无误，但存在 2 个必须先修的阻断缺陷、4 个正确性/可用性缺陷和若干清理项。详见第 3、4 节。
+历史结论是：功能设计方向正确，但当时存在 2 个阻断缺陷、4 个正确性/可用性缺陷和若干清理项；这些问题已在后续提交中处理，图标代理兼容性残余风险除外。
 
 ## 2. 历史污染与落地方式
 
@@ -32,11 +32,13 @@ PR 的 base 与 head 都是作者 fork 的 `main`，因此 `git fetch` 得到的
 
 因此采用 squash 落地：以 `d16cc0c` 为父提交，一次性提交 52 个文件的最终内容。选择单个提交而不是按功能拆三个提交，原因是 `shared/types.ts`、`src/App.svelte`、`worker/lib/db/bookmarks.ts`、`worker/routes/bookmarks.ts` 同时被三组功能修改，按文件无法切分，按 hunk 切分会产生中间不可构建的提交。作者署名通过 `Co-authored-by` 保留。
 
-原始历史不销毁：本地 `pr-7` 分支与 `refs/pull/7/head` 仍指向 `cbb1762`，随时可回溯。
+原始历史不销毁：本地 `pr-7` 分支与 `pr7-original-history` 标签仍指向 `cbb1762`，仅作本地回溯，不推送这些备份引用。此前记录中的 `refs/pull/7/head` 并不存在，已更正。
 
-`origin/develop` 仍在 `d16cc0c`，squash 后本地 `develop` 是它的直接后继，推送时是快进，不需要 force-push。推送本身不在本轮范围内。
+`develop` 后续已完成 squash、浏览器同步图标修复和 Issue #8 侧边栏滚动条修复；当前分支状态以 Git 实际引用为准，不在此处重复硬编码远端 SHA。
 
 ## 3. 阻断与正确性缺陷
+
+本节保留 PR7 初次合并审计时发现的问题与当时源码证据，均属于历史记录；当前修复状态和验证结果以第 6、7 节及当前 Git 提交为准。
 
 ### P0-1 浏览器同步接口的 CORS 中间件未覆盖真实端点
 
@@ -145,23 +147,20 @@ PR 原先只在 `tests/unit/settings.test.ts` 补了一行 `browser_sync_enabled
 
 发现的问题：
 
-- `docs/screenshots/书签同步开关.png` 含真实站点标题「海伦导航页」、分类数 7、书签数 52，且底部露出一段编辑器代码。用户特定信息不应进入 tracked 文件。
-- `docs/screenshots/书签单向同步插件.png` 的地址输入框有 `https://hao` 残留输入。
-- 4 张新增截图没有任何 Markdown 引用（README 与 docs 全文检索无命中）。`docs/plans/PLATFORM_OPTIMIZATION_PLAN.md:809` 记录的不变量是「`docs/screenshots/` 下 6 张图片全部被引用，无孤儿文件」，现已变成 10 张 4 个孤儿。
+- 初次审计发现其中一张截图含真实站点名称、分类/书签数量和编辑器内容；用户特定信息不应进入 tracked 文件。
+- 另一张扩展截图的地址输入框有测试残留输入。
+- 4 张新增截图没有任何 Markdown 引用（README 与 docs 全文检索无命中）。`docs/plans/PLATFORM_OPTIMIZATION_PLAN.md:809` 记录的不变量是「`docs/screenshots/` 下 6 张图片全部被引用，无孤儿文件」，当时变成 10 张 4 个孤儿。
 - `browser-extension/icon.png` 与 `public/icon.png` 的 md5 完全相同（`b426fde9951d61d38beee5789f2300e2`），75KB 重复资产。
 
 README 的功能表与既有各行使用一致的 emoji 图标，不存在此前判断的风格不一致；不做无意义改动。扩展图标虽然与 `public/icon.png` 同源，但扩展目录必须自包含，不能删除副本；只补充说明。
 
-**决策：删除这 4 张截图**，不重新脱敏截图、不补文档引用。README 与 `API_CONTRACT.md` 的文字说明已足够描述四项功能，图片没有承载额外信息。删除后 `docs/screenshots/` 回到 6 张全部被引用的状态，`PLATFORM_OPTIMIZATION_PLAN.md:809` 记录的「无孤儿文件」不变量重新成立，无需改写该文档。
+**决策：删除这 4 张截图**，不重新脱敏截图、不补文档引用。README 与 `API_CONTRACT.md` 的文字说明已足够描述四项功能，图片没有承载额外信息。删除后 `docs/screenshots/` 仅保留被公开文档引用的现有图片，`PLATFORM_OPTIMIZATION_PLAN.md` 的“无孤儿文件”不变量重新成立，无需写死图片数量。
 
-待删文件（当前均为 tracked，由 squash 提交 `5cb560e` 引入）：
+这些截图已在首次推送前从 `develop` 最终树移除；以下文件名仅保留为历史审计记录，不表示当前仍被跟踪：
 
-- `docs/screenshots/书签同步开关.png`
-- `docs/screenshots/书签单向同步插件.png`
-- `docs/screenshots/分类整体隐私.png`
-- `docs/screenshots/单个书签隐私.png`
+- `docs/screenshots/` 下 4 张 PR7 新增 PNG（具体文件名不再重复记录，避免历史审计文档携带截图中的站点信息）。
 
-关于 Git 历史：这 4 张 PNG 存在于本地 squash 提交 `5cb560e` 中。当前删除动作将在首次推送前修补该 squash，不涉及远端历史清理；不能用新增删除提交替代，否则图片仍会留在将要推送的历史对象中。
+关于 Git 历史：4 张 PNG 原先存在于本地 squash 提交 `5cb560e`，随后通过重写未推送的 squash 移除，未进入远端 `develop` 历史。原始 PR 备份引用仍仅保留在本地，不应推送。
 
 `browser-extension/icon.png` 的重复资产不与截图一并处理：扩展目录需要自包含（加载已解压扩展时不会带上 `public/`），删除会破坏 `manifest.json` 声明的 16/32/48/128 图标。保留副本，并在 `browser-extension/README.md` 说明它与项目图标同源。
 
@@ -207,7 +206,9 @@ README 的功能表与既有各行使用一致的 emoji 图标，不存在此前
 - **P2-7 「经常访问」私密书签：排除。** 私密书签不进入「经常访问」，登录与未登录一致。过滤放在 `getMostVisitedBookmarks` 内部，使首页与后台设置预览行为一致。
 - **落地方式：squash。** 已完成，见第 2 节。原始 47 个提交保留在本地 `pr-7` 分支与 `pr7-original-history` 标签（均指向 `cbb1762`）。
 
-## 8. 尚未决策 / 超出本轮范围
+## 8. 当前状态与后续范围
 
-- 是否推送 `develop` 至 `origin`、是否合并进 `main`、是否部署：均需用户明确指示，本计划不含这些动作。
-- P1-5 中「孤儿书签返回明确错误码」需要选定 `ErrCode`。现有 `shared/types.ts:174` 的 `CONFLICT: 1006`（当前资源状态不允许该操作）语义匹配，实施时确认是否复用而不新增错误码。
+- PR7 的 P0/P1 修复、私密数据过滤、跨分类排序、浏览器同步、默认 favicon.im 图标和 Issue #8 的 Chromium 侧边栏滚动条修复均已落地并通过测试。
+- 原始 Issue #8 正文中的“部分导出备份”和“顶部导航分行显示”仍是未实现的独立功能建议，不能因滚动条子问题已修复而宣称完成。
+- `/api/icon/:id` 与 `/api/category-icon/:id` 仍保留匿名兼容行为，按可枚举 ID 读取图标的风险见 P2-10；后续需签名 URL、会话 Cookie 或内联数据方案。
+- 是否将后续变更推送、合并或部署，按当前用户指令执行；本计划不替代现场 Git 状态。

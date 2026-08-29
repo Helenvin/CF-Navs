@@ -28,7 +28,7 @@ export interface HonoEnv {
   Variables: Variables
 }
 
-// KV 中会话值的形状
+// 解码后的 JWT 会话值，仅在 Hono context 与 isolate 内存缓存中使用，不直接写入 KV
 export interface SessionValue {
   username: string
   exp: number // 毫秒时间戳
