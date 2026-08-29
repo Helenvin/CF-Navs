@@ -320,6 +320,18 @@
     />
   {/if}
 
+  {#if canEdit && onEdit}
+    <button
+      type="button"
+      class="bookmark-edit-button"
+      aria-label={`编辑书签：${bookmark.title}`}
+      title="编辑书签"
+      on:click|stopPropagation={handleEditClick}
+    >
+      编辑
+    </button>
+  {/if}
+
   {#if contextMenuOpen}
     <BookmarkContextMenu onEdit={handleEditClick} />
   {/if}
@@ -348,10 +360,70 @@
     flex: 0 0 auto;
   }
 
+  .bookmark-edit-button {
+    position: absolute;
+    top: 50%;
+    right: 0.65rem;
+    z-index: 3;
+    min-height: 2rem;
+    padding: 0.28rem 0.68rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 0.7rem;
+    color: var(--card-text-color, #334155);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .bookmark-card-shell.is-info .bookmark-edit-button {
+    right: 0.72rem;
+  }
+
+  .bookmark-card-shell:hover .bookmark-edit-button,
+  .bookmark-card-shell:focus-within .bookmark-edit-button,
+  .bookmark-edit-button:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .bookmark-edit-button:hover {
+    border-color: rgba(37, 99, 235, 0.35);
+    color: #1d4ed8;
+    transform: translateY(-50%) scale(1.02);
+  }
+
+  :global([data-theme='dark']) .bookmark-edit-button {
+    border-color: rgba(148, 163, 184, 0.28);
+    color: #e2e8f0;
+    background: rgba(30, 41, 59, 0.92);
+  }
+
+  @media (hover: none), (max-width: 720px) {
+    .bookmark-edit-button {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
   @media (max-width: 500px) {
     .bookmark-card-shell.is-info {
       min-width: 0;
     }
+
+    .bookmark-edit-button {
+      right: 0.55rem;
+      min-height: 1.9rem;
+      padding: 0.24rem 0.56rem;
+      font-size: 0.74rem;
+    }
   }
 
 </style>
+
