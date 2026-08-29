@@ -39,6 +39,8 @@
   export let width: number = 200
   export let height: number = 0
   export let canEdit = false
+  /** 移动端编辑按钮仅在进入排序/拖动模式后显示，避免常驻遮挡卡片内容。 */
+  export let showEditButton = false
   export let sortMode = false
   export let preview = false
   export let themeOverride: 'light' | 'dark' | null = null
@@ -320,7 +322,7 @@
     />
   {/if}
 
-  {#if canEdit && onEdit}
+  {#if canEdit && showEditButton && onEdit}
     <button
       type="button"
       class="bookmark-edit-button"
@@ -386,6 +388,7 @@
     right: 0.72rem;
   }
 
+  .bookmark-card-shell.sort-mode .bookmark-edit-button,
   .bookmark-card-shell:hover .bookmark-edit-button,
   .bookmark-card-shell:focus-within .bookmark-edit-button,
   .bookmark-edit-button:focus-visible {
@@ -403,13 +406,6 @@
     border-color: rgba(148, 163, 184, 0.28);
     color: #e2e8f0;
     background: rgba(30, 41, 59, 0.92);
-  }
-
-  @media (hover: none), (max-width: 720px) {
-    .bookmark-edit-button {
-      opacity: 1;
-      pointer-events: auto;
-    }
   }
 
   @media (max-width: 500px) {
