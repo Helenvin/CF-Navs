@@ -30,11 +30,28 @@ export async function ensureBrowserSyncCategory(db: D1Database): Promise<Categor
   return created
 }
 
-function normalizeSyncBookmark(value: BrowserSyncBookmark): BrowserSyncBookmark | null {
+function normalizeSyncBookmark(value: BrowserSyncBookmark): BrowserSyncBookmark & {
+  icon: string
+  icon_source: 'favicon_im'
+} | null {
   const title = typeof value?.title === 'string' ? value.title.trim() : ''
   const url = typeof value?.url === 'string' ? value.url.trim() : ''
   if (!title || !isAllowedBookmarkUrl(url)) return null
-  return { title: title.slice(0, 200), url }
+
+  let hostname = ''
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+  if (!hostname) return null
+
+  return {
+    title: title.slice(0, 200),
+    url,
+    icon: `https://favicon.im/${encodeURIComponent(hostname)}?larger=true`,
+    icon_source: 'favicon_im',
+  }
 }
 
 export async function syncBrowserBookmarks(
@@ -64,12 +81,12 @@ export async function syncBrowserBookmarks(
            category_id, title, url, icon, icon_source, icon_background_color,
            description, description_mode, open_method, is_private, sort, created_at
          )
-         SELECT ?, ?, ?, NULL, NULL, NULL, NULL, NULL, 1, 0,
+         SELECT ?, ?, ?, ?, ?, NULL, NULL, NULL, 1, 0,
            COALESCE((SELECT MAX(sort) FROM bookmarks WHERE category_id = ?), -1) + 1, ?
          WHERE EXISTS (SELECT 1 FROM categories WHERE id = ?)
          RETURNING id`,
       )
-      .bind(category.id, bookmark.title, bookmark.url, category.id, Date.now(), category.id)
+      .bind(category.id, bookmark.title, bookmark.url, bookmark.icon, bookmark.icon_source, category.id, Date.now(), category.id)
       .first<{ id: number }>()
 
     if (row) {

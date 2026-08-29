@@ -195,7 +195,7 @@ HTTP(S) 图标抓取成功后，代理会直接返回图片字节并写入 Cloud
 | --- | --- | --- | --- |
 | POST | `/api/browser-sync/bookmarks` | `{ bookmarks: { title: string, url: string }[] }`，最多 100 条 | `{ category_id, category_title, created, skipped }` |
 
-服务端只接收 `http://` 和 `https://` 书签；重复 URL、空标题、非法 URL 或无效记录会计入 `skipped`。同步开关关闭时返回冲突错误，不会写入数据。浏览器收藏夹文件夹不会作为导航分类处理，所有记录固定写入“浏览器新增收藏”。
+服务端只接收 `http://` 和 `https://` 书签；重复 URL、空标题、非法 URL 或无效记录会计入 `skipped`。同步创建的书签默认写入 `https://favicon.im/<hostname>?larger=true`，`icon_source` 为 `favicon_im`，不在同步请求期间执行外部页面抓取。同步开关关闭时返回冲突错误，不会写入数据。浏览器收藏夹文件夹不会作为导航分类处理，所有记录固定写入“浏览器新增收藏”。
 
 字符串设置项有长度上限，超出返回 `code=1002` 且 msg 中包含字段名与上限值。按 Unicode 码位计数（含 emoji 的标题不会被误判）：`site_title` 200；`site_title_color` / `card_background_color` / `card_text_color` / `background.maskColor` 各 64；`image_host_url` 2048；`custom_css` / `custom_js` / `footer_html` 各 65536；`background.value` 与 `backgrounds.light|dark.value` 各 262144。背景值的上限尤其重要：它会随 `toPublicSettings` 进入每个访客的 `/api/public/data`，不限长会直接破坏性能契约中「聚合数据保持轻量」的约定。
 
