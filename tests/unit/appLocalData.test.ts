@@ -3,7 +3,6 @@ import type { Bookmark, Category, PublicBookmark, PublicCategory } from '../../s
 import {
   applySortOrder,
   applyCategorySiblingSort,
-  buildOrderedBookmarkIdsForCategory,
   buildPublicDataAfterCategoryDelete,
   removeBookmarksByCategory,
   removeById,
@@ -115,17 +114,6 @@ describe('appLocalData sort helpers', () => {
       [1, 1],
       [2, 1],
     ])
-  })
-
-  it('rebuilds the global bookmark id list from a category-local drag order', () => {
-    const bookmarks = [
-      { id: 10, category_id: 1, sort: 0 },
-      { id: 20, category_id: 2, sort: 1 },
-      { id: 11, category_id: 1, sort: 2 },
-      { id: 21, category_id: 2, sort: 3 },
-    ]
-
-    expect(buildOrderedBookmarkIdsForCategory(bookmarks, 1, [11, 10])).toEqual([11, 20, 10, 21])
   })
 
   it('updates sort only inside the selected category sibling scope', () => {

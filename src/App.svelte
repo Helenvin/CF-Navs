@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition'
   import {
     type Bookmark,
+    type BookmarkReorganizeReq,
     type Category,
     type ChangePasswordReq,
     type ThemeMode,
@@ -58,7 +59,6 @@
     toInstallScreenState,
     type InstallScreenState,
   } from './lib/appInstall'
-  import { buildOrderedBookmarkIdsForCategory } from './lib/appLocalData'
   import { createBookmarkDraft, createCategoryDraft, findBookmarkForEdit } from './lib/appModalState'
   import {
     canSeeHomeView,
@@ -877,14 +877,18 @@
     })
   }
 
-  // 首页按分类内拖拽排序：只给出该分类内的新顺序，这里据此重建“全量有序 id 列表”，
-  // 仅替换该分类占据的槽位，其它书签位置保持不变，从而保持全局 sort 与后台平铺表一致。
-  async function handleSortBookmarksInCategory(
-    categoryId: number,
-    orderedIdsInCategory: number[],
+  // 跨分类整理是全量提交：失败时草稿与服务端状态已不一致，
+  // 先按兄弟排序处理器的约定回滚到服务端数据，再把原始错误交给首页展示。
+  async function handleReorganizeBookmarks(
+    categoryOrders: BookmarkReorganizeReq['category_orders'],
   ): Promise<void> {
-    const current = get(publicStore).data?.bookmarks ?? get(adminStore).data.bookmarks
-    await handleSortBookmarks(buildOrderedBookmarkIdsForCategory(current, categoryId, orderedIdsInCategory))
+    try {
+      await api.bookmarks.reorganize(categoryOrders)
+    } catch (error) {
+      await refreshLoggedInData(true)
+      throw error
+    }
+    await refreshAdminDataAfterMutation()
   }
 
   function handleExportData(): void {
@@ -993,7 +997,7 @@
           authLoading={$authStore.loading}
           onOpenCreateBookmark={handleOpenCreateBookmark}
           onEditBookmark={handleEditBookmark}
-          onSortBookmarksInCategory={handleSortBookmarksInCategory}
+          onReorganizeBookmarks={handleReorganizeBookmarks}
           onSwitchToAdmin={handleSwitchToAdmin}
           onLogout={handleLogout}
           onOpenLogin={handleOpenLogin}

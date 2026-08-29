@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS categories (
   parent_id   INTEGER,                    -- NULL=一级分类，非空=所属一级分类
   title       TEXT NOT NULL,
   icon        TEXT,                       -- 图标 URL（可填 cftc 直链）
+  is_private  INTEGER NOT NULL DEFAULT 0,-- 0=访客可见 1=仅登录可见
   sort        INTEGER NOT NULL DEFAULT 0,
   created_at  INTEGER NOT NULL
 );
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   description  TEXT,
   description_mode TEXT,
   open_method  INTEGER NOT NULL DEFAULT 1,-- 1=新窗口 2=当前页 3=当前页弹层
+  is_private   INTEGER NOT NULL DEFAULT 0,-- 0=公开 1=仅登录可见
   sort         INTEGER NOT NULL DEFAULT 0,
   click_count  INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL
@@ -53,6 +55,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('site_title_color', '""'),
   ('site_title_font_size', '32'),
   ('public_mode', 'true'),
+  ('browser_sync_enabled', 'false'),
   ('theme', '"light"'),
   ('background_preset_id', '"ocean-depths"'),
   ('background', '{"type":"gradient","value":"radial-gradient(circle at 16% 12%, rgba(56, 189, 248, 0.5), transparent 44%), radial-gradient(circle at 84% 18%, rgba(45, 212, 191, 0.42), transparent 46%), radial-gradient(circle at 52% 96%, rgba(147, 197, 253, 0.46), transparent 50%), linear-gradient(145deg, #eff9ff 0%, #e7f5fe 46%, #e9f9f8 100%)","blur":0,"mask":0.06,"maskColor":"#ffffff"}'),

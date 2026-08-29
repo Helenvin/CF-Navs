@@ -85,12 +85,19 @@ export function groupBookmarksByCategory(items: PublicBookmark[]): Map<number, P
   return grouped
 }
 
+// 「经常访问」是首页最显眼的公共区块，私密书签不进入该区块：
+// 访客侧后端已过滤，管理员登录后拿到的是全量数据，必须在此处一并排除，
+// 否则管理员与访客看到的构成不同，后台实时预览也无法反映真实效果。
 export function getMostVisitedBookmarks(items: PublicBookmark[], limit: number): PublicBookmark[] {
   const normalizedLimit = Math.max(0, Math.floor(Number(limit) || 0))
   if (normalizedLimit === 0) return []
 
   return items
-    .filter((bookmark) => (bookmark.click_count ?? 0) > 0)
+    .filter((bookmark) => (
+      (bookmark.click_count ?? 0) > 0
+      && bookmark.is_private !== true
+      && bookmark.is_private !== 1
+    ))
     .sort((a, b) => (
       (b.click_count ?? 0) - (a.click_count ?? 0)
       || a.sort - b.sort

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "CF-Navs 浏览器书签同步",
+  "version": "0.2.1",
+  "description": "将浏览器新增书签单向同步到 CF-Navs 的“浏览器新增收藏”分类。",
+  "permissions": ["bookmarks", "storage"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "CF-Navs 书签同步",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

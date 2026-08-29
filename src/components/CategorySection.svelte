@@ -4,8 +4,7 @@
   import BookmarkCard from './BookmarkCard.svelte'
   import CategoryIcon from './CategoryIcon.svelte'
   import { getIconCardTrackWidth } from '../lib/bookmarkCardLayout'
-  import { reorderByIds } from '../lib/reorder'
-  import { sortableList } from '../lib/sortableList'
+  import { sortableList, type SortTransfer } from '../lib/sortableList'
 
   type AsyncVoid<T = void> = T | Promise<T>
 
@@ -19,6 +18,11 @@
   export let showCategoryIcon = true
   export let canAddBookmark = false
   export let canSort = false
+  /** 传入后由页面统一控制排序会话，支持多个分类列表互相拖放。 */
+  export let controlledSortMode: boolean | undefined = undefined
+  export let sortGroup = ''
+  export let sortCategoryId: number | null = null
+  export let showSortActions = true
   export let cardWidth = 200 // 改为 200，Sun-Panel 标准
   export let cardHeight = 0
   export let cardStyle: CardStyle = 'info'
@@ -28,40 +32,32 @@
   export let cardIconShowTitle = true
   export let onAddBookmark: ((categoryId?: string | number) => AsyncVoid) | undefined = undefined
   export let onEditBookmark: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
-  export let onSortBookmarks: ((categoryId: number, orderedIds: number[]) => AsyncVoid) | undefined = undefined
+  export let onRequestSort: (() => AsyncVoid) | undefined = undefined
+  export let onCancelSortSession: (() => AsyncVoid) | undefined = undefined
+  export let onSaveSortSession: (() => AsyncVoid) | undefined = undefined
+  export let onSortDraft: ((categoryId: number, orderedIds: number[]) => AsyncVoid) | undefined = undefined
+  export let onSortTransfer: ((transfer: SortTransfer) => AsyncVoid) | undefined = undefined
 
-  // 排序模式：先点“排序”进入，拖拽只改本地快照，点“保存”才回写。
-  let sortMode = false
-  let localBookmarks: PublicBookmark[] = []
+  // 排序会话由页面统一控制：进入后拖拽只改页面草稿，保存/取消都由页面处理。
   let savingSort = false
 
-  $: displayBookmarks = sortMode ? localBookmarks : bookmarks
-  $: showActions = sortMode || canAddBookmark || (canSort && bookmarks.length > 1)
-
-  function enterSort() {
-    localBookmarks = [...bookmarks]
-    sortMode = true
-  }
-
-  function cancelSort() {
-    sortMode = false
-    localBookmarks = []
-  }
+  $: activeSortMode = controlledSortMode ?? false
+  // 跨分类拖放时单个甚至零个书签也需要入口，把书签拖出或拖入本分类。
+  $: canEnterSort = canSort && controlledSortMode !== undefined
+  $: showActions = activeSortMode || canAddBookmark || canEnterSort
 
   function handleReorder(orderedIds: Array<string | number>) {
-    localBookmarks = reorderByIds(localBookmarks, orderedIds)
+    void onSortDraft?.(category.id, orderedIds.map(Number))
+  }
+
+  function handleTransfer(transfer: SortTransfer) {
+    void onSortTransfer?.(transfer)
   }
 
   async function saveSort() {
-    if (!onSortBookmarks) {
-      cancelSort()
-      return
-    }
     savingSort = true
     try {
-      await onSortBookmarks(category.id, localBookmarks.map((item) => item.id))
-      sortMode = false
-      localBookmarks = []
+      await onSaveSortSession?.()
     } finally {
       savingSort = false
     }
@@ -97,11 +93,11 @@
       {/if}
       {#if showActions}
         <div class="section-actions" role="group" aria-label={`${heading} 操作`}>
-          {#if sortMode}
+          {#if activeSortMode && showSortActions}
             <button
               type="button"
               class="add-link-button ghost"
-              on:click={cancelSort}
+              on:click={() => onCancelSortSession?.()}
               disabled={savingSort}
               aria-label="取消排序"
               title="取消排序"
@@ -120,7 +116,7 @@
               <span aria-hidden="true" class="action-symbol">{savingSort ? '…' : '✓'}</span>
               <span class="action-label">{savingSort ? '保存中' : '保存排序'}</span>
             </button>
-          {:else}
+          {:else if !activeSortMode}
             {#if canAddBookmark}
               <button
                 type="button"
@@ -133,11 +129,11 @@
                 <span class="action-label">新增书签</span>
               </button>
             {/if}
-            {#if canSort && bookmarks.length > 1}
+            {#if canEnterSort}
               <button
                 type="button"
                 class="add-link-button ghost"
-                on:click={enterSort}
+                on:click={() => onRequestSort?.()}
                 aria-label="排序"
                 title="排序"
               >
@@ -145,25 +141,30 @@
                 <span class="action-label">排序</span>
               </button>
             {/if}
+          {:else}
+            <span class="sort-session-label">拖动书签到其他分类</span>
           {/if}
         </div>
       {/if}
     </header>
   {/if}
 
-  {#if bookmarks.length > 0}
+  {#if bookmarks.length > 0 || activeSortMode}
     <div
       class="bookmark-grid"
-      class:is-sorting={sortMode}
+      class:is-sorting={activeSortMode}
       class:is-icon-grid={cardStyle !== 'info'}
       class:is-info-grid={cardStyle === 'info'}
+      data-sort-category-id={sortCategoryId ?? category.id}
       style="--card-min-width: {gridMinWidth}px; --mobile-card-min-width: {mobileGridMinWidth}px; --bookmark-grid-gap: {gridGap}; --mobile-bookmark-grid-gap: {mobileGridGap};"
       use:sortableList={{
-        enabled: sortMode,
+        enabled: activeSortMode,
         onSort: handleReorder,
+        group: sortGroup || undefined,
+        onTransfer: handleTransfer,
       }}
     >
-      {#each displayBookmarks as bookmark (bookmark.id)}
+      {#each bookmarks as bookmark (bookmark.id)}
         <div class="bookmark-grid-item" data-sortable-item data-sort-id={bookmark.id}>
           <BookmarkCard
             {bookmark}
@@ -175,13 +176,16 @@
             width={cardWidth}
             height={cardHeight}
             canEdit={Boolean(onEditBookmark)}
-            sortMode={sortMode}
+            sortMode={activeSortMode}
             onEdit={onEditBookmark}
           />
         </div>
       {/each}
+      {#if activeSortMode && bookmarks.length === 0}
+        <div class="empty-sort-drop-zone">拖到这里即可移动到此分类</div>
+      {/if}
     </div>
-    {#if sortMode}
+    {#if activeSortMode}
       <p class="sort-hint">拖动卡片调整顺序，完成后点击「保存排序」。</p>
     {/if}
   {:else if showEmpty}
@@ -366,6 +370,24 @@
     color: var(--home-text-color, #64748b);
     opacity: 0.78;
     font-size: 0.85rem;
+  }
+
+  .sort-session-label {
+    color: var(--home-text-color, #64748b);
+    font-size: 0.82rem;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  .empty-sort-drop-zone {
+    min-height: 92px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--home-stat-border, rgba(148, 163, 184, 0.55));
+    border-radius: 1rem;
+    color: var(--home-text-color, #64748b);
+    opacity: 0.72;
+    background: var(--home-stat-chip-bg, rgba(255, 255, 255, 0.24));
   }
 
   .bookmark-grid {

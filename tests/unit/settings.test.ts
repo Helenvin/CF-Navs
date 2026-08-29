@@ -7,6 +7,7 @@ const settings: Settings = {
   site_title_color: '#ffffff',
   site_title_font_size: 32,
   public_mode: true,
+  browser_sync_enabled: false,
   theme: 'auto',
   background_preset_id: 'custom',
   background: { type: 'color', value: '#0f172a', blur: 0, mask: 0.3, maskColor: '#000000' },

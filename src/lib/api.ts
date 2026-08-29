@@ -3,6 +3,7 @@ import {
   type AdminData,
   type BatchDeleteBookmarksResp,
   type BatchDeleteCategoriesResp,
+  type BookmarkReorganizeReq,
   type ApiResponse,
   type Bookmark,
   type BookmarkUpsertReq,
@@ -370,6 +371,8 @@ export const bookmarksApi = {
   remove: (id: number) => request<null>(`/bookmarks/${id}`, { method: 'DELETE', auth: true }),
   batchDelete: (ids: number[]) => jsonRequest<BatchDeleteBookmarksResp>('/bookmarks/batch-delete', 'POST', { ids }, true),
   sort: (ids: SortReq['ids']) => jsonRequest<null>('/bookmarks/sort', 'POST', { ids }, true),
+  reorganize: (category_orders: BookmarkReorganizeReq['category_orders']) =>
+    jsonRequest<null>('/bookmarks/reorganize', 'POST', { category_orders }, true),
   checkHealth: (ids: number[]) =>
     jsonRequest<Array<{ id: number; status: number | string; ok: boolean }>>('/bookmarks/check-health', 'POST', { ids }, true),
   fetchFavicon: (url: string) =>

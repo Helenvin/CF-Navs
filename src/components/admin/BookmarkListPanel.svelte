@@ -293,9 +293,13 @@
                           <span class="admin-bookmark-title-full">{bookmark.title}</span>
                           <span class="admin-bookmark-title-mobile" aria-hidden="true">{truncateUnicodeText(bookmark.title, 12)}</span>
                         </strong>
+                        {#if bookmark.is_private}
+                          <span class="private-bookmark-badge" title="仅登录后可见">🔒 私密</span>
+                        {/if}
                         <div class="admin-bookmark-meta">
                           <span class="admin-bookmark-category">{getCategoryTitle(bookmark.category_id)}</span>
                           <span class="admin-bookmark-method">{bookmark.open_method === 'same_tab' ? '当前标签页' : bookmark.open_method === 'modal' ? '当前页弹层' : '新标签页'}</span>
+                          {#if bookmark.is_private}<span>🔒 私密</span>{/if}
                         </div>
                         <a href={bookmark.url} target="_blank" rel="noreferrer" class="admin-bookmark-mobile-url" title={bookmark.url} aria-label={`打开 ${bookmark.url}`}>
                           {truncateUnicodeText(bookmark.url, 20)}
@@ -519,6 +523,17 @@
     display: block;
   }
 
+  .private-bookmark-badge {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: #92400e;
+    background: #fef3c7;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
   .admin-bookmark-title-mobile {
     display: none;
   }
@@ -658,6 +673,10 @@
       color: var(--admin-subtle);
       font-size: 11px;
       line-height: 1.3;
+    }
+
+    .private-bookmark-badge {
+      display: none;
     }
 
     .admin-bookmark-category,

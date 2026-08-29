@@ -8,6 +8,7 @@ export interface Category {
   parent_id: number | null
   title: string
   icon: string | null
+  is_private?: boolean | number // 公开分类为 0/false，私密分类为 1/true
   sort: number
   created_at: number
 }
@@ -25,6 +26,7 @@ export interface Bookmark {
   description: string | null
   description_mode?: DescriptionDisplayMode | null
   open_method: 1 | 2 | 3 // 1=新窗口 2=当前页 3=当前页弹层
+  is_private?: boolean | number // 公开书签为 0/false，私密书签为 1/true
   sort: number
   click_count?: number
   created_at: number
@@ -125,6 +127,7 @@ export interface Settings {
   site_title_color: string
   site_title_font_size: number
   public_mode: boolean
+  browser_sync_enabled: boolean
   theme: ThemeMode
   background_preset_id: BackgroundPresetId
   background: BackgroundSetting // 兼容旧版本：新逻辑优先使用 backgrounds
@@ -285,6 +288,7 @@ export interface CategoryUpsertReq {
   title: string
   icon?: string | null
   parent_id?: number | null
+  is_private?: boolean
 }
 
 // POST/PUT 书签
@@ -298,6 +302,24 @@ export interface BookmarkUpsertReq {
   description?: string | null
   description_mode?: DescriptionDisplayMode | null
   open_method?: 1 | 2 | 3
+  is_private?: boolean
+}
+
+// POST /api/browser-sync/bookmarks —— 浏览器扩展单向同步
+export interface BrowserSyncBookmark {
+  title: string
+  url: string
+}
+
+export interface BrowserSyncReq {
+  bookmarks: BrowserSyncBookmark[]
+}
+
+export interface BrowserSyncResp {
+  category_id: number
+  category_title: string
+  created: number
+  skipped: number
 }
 
 // GET /api/fetch-favicon?url=...
@@ -333,6 +355,14 @@ export interface IconifySearchResp {
 // 传有序 id 数组，后端按下标写 sort
 export interface SortReq {
   ids: number[]
+}
+
+/** 首页跨分类拖拽后，按分类提交完整的书签顺序。 */
+export interface BookmarkReorganizeReq {
+  category_orders: Array<{
+    category_id: number
+    ids: number[]
+  }>
 }
 
 export interface CategorySortReq extends SortReq {

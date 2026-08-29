@@ -185,6 +185,18 @@ HTTP(S) 图标抓取成功后，代理会直接返回图片字节并写入 Cloud
 
 设置存储在 D1 `settings` 表中，`value` 为 JSON 字符串。后端读取时聚合为完整 `Settings` 对象，并对缺失字段使用默认值。后台设置面板提交完整 `Settings` 字段时，`PUT /api/settings` 写入 D1 后直接用本次提交的 payload 和默认值合成响应，避免额外回读 settings 全表；只提交部分字段的兼容请求仍会写入后读取完整 `Settings` 返回。
 
+`browser_sync_enabled` 默认值为 `false`，仅属于管理员设置，不会下发到公开设置。开启该设置时服务端会幂等创建根分类“浏览器新增收藏”；关闭时不会删除该分类或其中已有书签。
+
+## 浏览器书签同步接口
+
+全部需要登录，Chrome/Edge 扩展使用与后台相同的 Bearer Session Token。该接口只允许新增书签，不提供删除或反向同步能力。
+
+| 方法 | 路径 | 请求 | 返回 |
+| --- | --- | --- | --- |
+| POST | `/api/browser-sync/bookmarks` | `{ bookmarks: { title: string, url: string }[] }`，最多 100 条 | `{ category_id, category_title, created, skipped }` |
+
+服务端只接收 `http://` 和 `https://` 书签；重复 URL、空标题、非法 URL 或无效记录会计入 `skipped`。同步开关关闭时返回冲突错误，不会写入数据。浏览器收藏夹文件夹不会作为导航分类处理，所有记录固定写入“浏览器新增收藏”。
+
 字符串设置项有长度上限，超出返回 `code=1002` 且 msg 中包含字段名与上限值。按 Unicode 码位计数（含 emoji 的标题不会被误判）：`site_title` 200；`site_title_color` / `card_background_color` / `card_text_color` / `background.maskColor` 各 64；`image_host_url` 2048；`custom_css` / `custom_js` / `footer_html` 各 65536；`background.value` 与 `backgrounds.light|dark.value` 各 262144。背景值的上限尤其重要：它会随 `toPublicSettings` 进入每个访客的 `/api/public/data`，不限长会直接破坏性能契约中「聚合数据保持轻量」的约定。
 
 `navigation` 是公开设置对象，结构为 `{ position: 'left' | 'top', always_expanded: boolean }`。缺失或非法的 D1 历史值读取时回退为 `{ position: 'left', always_expanded: false }`；更新接口拒绝未知位置或非布尔 `always_expanded`。`always_expanded` 只控制桌面左侧布局，顶部和移动端不会应用该值，但后台切换布局时会保留原配置。

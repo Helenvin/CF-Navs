@@ -7,6 +7,7 @@
   export let title = ''
   export let url = ''
   export let openMethod: BookmarkFormValue['open_method'] = 'new_tab'
+  export let isPrivate = false
   export let description = ''
   export let descriptionMode: BookmarkFormValue['description_mode'] = 'inherit'
   export let categories: CategoryTreeOption[] = []
@@ -55,6 +56,15 @@
   </select>
 </label>
 
+<label class="field-compact privacy-field">
+  <span>访问权限</span>
+  <span class="checkbox-row">
+    <input bind:checked={isPrivate} type="checkbox" disabled={loading} />
+    <span>设为私密链接（仅登录可见）</span>
+  </span>
+  <small>开启后，未登录访客不会看到这个书签；管理员登录后仍可正常访问。</small>
+</label>
+
 <label class="field-compact">
   <span>描述</span>
   <textarea bind:value={description} rows="3" placeholder="补充说明，可选"></textarea>
@@ -96,6 +106,27 @@
     color: #64748b;
     font-size: 11px;
     font-weight: 400;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    color: #334155;
+    font-size: 13px;
+  }
+
+  .checkbox-row input {
+    width: 16px;
+    height: 16px;
+    accent-color: #2563eb;
+  }
+
+  .privacy-field small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.45;
   }
 
   input,

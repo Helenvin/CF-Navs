@@ -244,6 +244,14 @@
           </div>
         </label>
 
+        <label class="visibility-toggle">
+          <input bind:checked={form.is_private} type="checkbox" />
+          <span>
+            <strong>访客不可见（仅登录可见）</strong>
+            <small>开启后，未登录访客看不到此分类、子分类及其中的书签。</small>
+          </span>
+        </label>
+
         <IconifySelector
           bind:iconifyName
           {iconifyPreviewUrl}
@@ -367,6 +375,39 @@
     margin: 0;
     color: #dc2626;
     font-size: 13px;
+  }
+
+  .visibility-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #dbe4ef;
+    border-radius: var(--radius-lg);
+    background: #f8fafc;
+  }
+
+  .visibility-toggle input {
+    width: 18px;
+    min-height: 18px;
+    margin: 2px 0 0;
+    accent-color: #2563eb;
+  }
+
+  .visibility-toggle span {
+    display: grid;
+    gap: 4px;
+  }
+
+  .visibility-toggle strong {
+    color: #0f172a;
+    font-size: 14px;
+  }
+
+  .visibility-toggle small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .icon-row {

@@ -1,9 +1,11 @@
 import { Hono } from 'hono'
-import { ErrCode, type BatchDeleteReq, type BookmarkUpsertReq, type SortReq } from '../../shared/types'
+import { ErrCode, type BatchDeleteReq, type BookmarkReorganizeReq, type BookmarkUpsertReq, type SortReq } from '../../shared/types'
 import {
   createBookmark,
   deleteBookmark,
   batchDeleteBookmarks,
+  reorganizeBookmarks,
+  BookmarkReorganizeError,
   getBookmarkIconData,
   listBookmarks,
   sortBookmarks,
@@ -97,6 +99,38 @@ bookmarksRoutes.post('/batch-delete', async (c) => {
     return c.json(ok({ deleted }))
   } catch {
     return c.json(fail(ErrCode.SERVER_ERROR, 'failed to batch delete bookmarks'))
+  }
+})
+
+bookmarksRoutes.post('/reorganize', async (c) => {
+  const body = await readJson<BookmarkReorganizeReq>(c)
+  const categoryOrders = body?.category_orders
+  if (
+    !Array.isArray(categoryOrders) ||
+    !categoryOrders.every((order) => (
+      order &&
+      Number.isInteger(order.category_id) &&
+      order.category_id > 0 &&
+      Array.isArray(order.ids) &&
+      order.ids.every((id) => Number.isInteger(id) && id > 0)
+    ))
+  ) {
+    return badRequest(c, 'invalid reorganize payload')
+  }
+
+  try {
+    await reorganizeBookmarks(c.env.DB, categoryOrders)
+    await touchDataVersion(c.env.DB)
+    invalidateRuntimeDataCache()
+    invalidatePublicDataCache(c, c.req.url)
+    return c.json(ok(null))
+  } catch (error) {
+    // 请求集合与库中状态不一致（分类被删、书签集合过期）属于状态冲突，
+    // 客户端应刷新后重试，不能笼统报成服务端错误。
+    if (error instanceof BookmarkReorganizeError) {
+      return c.json(fail(ErrCode.CONFLICT, error.message))
+    }
+    return c.json(fail(ErrCode.SERVER_ERROR, 'failed to reorganize bookmarks'))
   }
 })
 

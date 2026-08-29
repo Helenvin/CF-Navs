@@ -19,6 +19,7 @@ export const emptyBookmarkForm: BookmarkFormValue = {
   description: '',
   description_mode: 'inherit',
   open_method: 'new_tab',
+  is_private: false,
 }
 
 export function createBookmarkFormValue(
@@ -36,6 +37,7 @@ export function createBookmarkFormValue(
     icon_background_color: value?.icon_background_color ?? '',
     description: value?.description ?? '',
     open_method: value?.open_method ?? 'new_tab',
+    is_private: value?.is_private === true,
   }
 }
 

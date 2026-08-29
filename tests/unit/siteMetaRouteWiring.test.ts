@@ -24,6 +24,16 @@ describe('site meta route wiring', () => {
     )
   })
 
+  it('covers the nested browser-sync endpoint with CORS middleware', () => {
+    expect(index.indexOf("app.use('/api/browser-sync/*', corsHeaders)")).toBeGreaterThan(
+      index.indexOf("app.use('/api/browser-sync', corsHeaders)"),
+    )
+    expect(index.indexOf("app.use('/api/browser-sync/*', corsHeaders)")).toBeLessThan(
+      index.indexOf("app.route('/api/browser-sync', browserSyncRoutes)"),
+    )
+  })
+
+
   it('never fails the site meta request, falling back to the hostname', () => {
     expect(routes).toContain('hostnameFallbackTitle')
     expect(routes).toContain('SITE_META_DEADLINE_MS')

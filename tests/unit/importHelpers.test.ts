@@ -1,22 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeImportCategory, normalizeImportBookmark, remapImportRecords } from '../../worker/lib/db/importHelpers'
+import { CATEGORY_IMPORT_CHUNK_SIZE } from '../../worker/lib/db/import'
+import { chunkImportRows, normalizeImportCategory, normalizeImportBookmark, remapImportRecords } from '../../worker/lib/db/importHelpers'
 import type { Bookmark, Category } from '../../shared/types'
 
 describe('normalizeImportCategory', () => {
   const now = 1700000000000
 
-  it('passes through well-formed categories', () => {
-    const input: Category = { id: 1, title: 'Tools', icon: '/icon.svg', sort: 3, created_at: 100 }
-    const output = normalizeImportCategory(input, now)
-
-    expect(output).toEqual({
+  it('preserves the private flag when importing a private category', () => {
+    const input: Category = {
       id: 1,
-      parent_id: null,
-      title: 'Tools',
+      title: 'Private tools',
       icon: '/icon.svg',
+      is_private: 1,
       sort: 3,
       created_at: 100,
-    })
+    }
+    const output = normalizeImportCategory(input, now)
+
+    expect(output.is_private).toBe(true)
+  })
+
+  it('does not invent a private flag for legacy categories', () => {
+    const input: Category = { id: 2, title: 'Legacy', icon: null, sort: 0, created_at: 100 }
+    const output = normalizeImportCategory(input, now)
+
+    expect(output).not.toHaveProperty('is_private')
   })
 
   it('defaults null icon to null', () => {
@@ -47,6 +55,7 @@ describe('normalizeImportCategory', () => {
     expect(output.created_at).toBe(now)
   })
 
+
   it('keeps negative sort if finite', () => {
     const input: Category = { id: 6, title: 'Neg', icon: null, sort: -5, created_at: 50 }
     const output = normalizeImportCategory(input, now)
@@ -55,6 +64,14 @@ describe('normalizeImportCategory', () => {
   })
 })
 
+describe('category import batching', () => {
+  it('keeps 15 categories within the 100-parameter D1 statement limit', () => {
+    const chunks = chunkImportRows(Array.from({ length: 15 }, (_, id) => ({ id })), CATEGORY_IMPORT_CHUNK_SIZE)
+
+    expect(CATEGORY_IMPORT_CHUNK_SIZE * 7).toBeLessThanOrEqual(100)
+    expect(chunks.map((chunk) => chunk.length)).toEqual([14, 1])
+  })
+})
 describe('normalizeImportBookmark', () => {
   const now = 1700000000000
 
