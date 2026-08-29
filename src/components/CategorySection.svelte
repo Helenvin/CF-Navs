@@ -24,6 +24,7 @@
   export let sortGroup = ''
   export let sortCategoryId: number | null = null
   export let showSortActions = true
+  export let showSortSessionLabel = true
   export let cardWidth = 200 // 改为 200，Sun-Panel 标准
   export let cardHeight = 0
   export let cardStyle: CardStyle = 'info'
@@ -180,7 +181,7 @@
                 <span class="action-label">排序</span>
               </button>
             {/if}
-          {:else}
+          {:else if showSortSessionLabel}
             <span class="sort-session-label">拖动书签到其他分类</span>
           {/if}
         </div>
@@ -570,4 +571,3 @@
     }
   }
 </style>
-
