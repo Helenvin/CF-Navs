@@ -265,3 +265,20 @@ CF-Navs/
 ## 许可证
 
 本项目采用 [MIT License](LICENSE)。
+
+<!-- 爱发电赞助区 (折叠卡片) -->
+<hr>
+
+<div align="center">
+
+<details>
+  <summary><b>☕️ 喜欢 CF-Navs？请作者喝杯咖啡 / Sponsor</b></summary>
+  <br>
+  <p>如果这个项目对你有帮助，欢迎赞助支持！你的支持是维持项目持续更新和维护的最大动力 ❤️</p>
+  <a href="https://afdian.com/a/benjian" target="_blank">
+    <img src="https://img.shields.io/badge/爱发电-前往赞助-946CE6?style=for-the-badge&logo=afdian&logoColor=white" alt="爱发电赞助">
+  </a>
+  <p><small>💡 赞助支持代搭建指导,详情见爱发电主页</small></p>
+</details>
+
+</div>
