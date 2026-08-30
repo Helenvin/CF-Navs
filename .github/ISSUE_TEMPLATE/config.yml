@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📢 注意事项
+    url: https://github.com/lbjxr/CF-Navs/issues
+    about: "请【一个 Issue 只聊一件事】。如果你同时有 Bug 和功能建议，请分开提交两次，感谢配合！🙏"
