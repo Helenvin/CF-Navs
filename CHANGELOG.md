@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+### 修复登录态首页看不到私密对象的真实图标
+
+- 现象：登录后首页里「仅登录可见」的分类（以及它们下面的书签）图标全是兜底占位图——左侧栏分类、分类区块标题、分类 tab、卡片图标、Spotlight 结果行都中招；后台同一批对象却显示真实图标。
+- 根因：首页此前从不下发 icon-access key（`iconAccessKey` 只在后台组件里用）。服务端 `GET /api/category-icon/:id` 与 `GET /api/icon/:id` 匿名可访问，但会先做匿名可见性判定：私密分类及其后代、私密书签、挂在私密分类下的公开书签一律返回不含标题域名的兜底图（PROB-20 方案 1，不泄露存在性）。于是登录用户在首页拿到的是兜底图，而本地图标缓存还会把这张兜底图留在同一台机器上。
+- 修复：新增 `src/lib/categoryPrivacy.ts` 统一「私密分类（含后代）」判定，口径与 worker 的 `getPublicCategoryIds` / `isBookmarkIconAnonymouslyVisible` 严格互补，并把后台 `getHiddenCategoryIds` 的实现收敛到同一份；首页 `Home.svelte` 计算 `privateCategoryIds` 下发到 Sidebar / 5 处 CategorySection / HomeCategoryScope，`SearchSpotlight` 自行计算，各挂载点只在命中私密集合时才把 `$iconAccessKey` 交给 `CategoryIcon` / `BookmarkCard` / `SpotlightBookmarkIcon`。公开对象仍走不带 key 的匿名路径，保留边缘缓存与 Service Worker 缓存。
+- 图标状态模块：`bookmarkCardIconState` 新增 `iconAccessKey` 输入——带授权时把 key 拼到代理 URL 上、**完全跳过本地图标缓存**（既不读匿名态缓存下来的兜底图，也不把私密图标写进共享缓存键），并把授权态纳入 `nextIconStateKey`，避免匿名态的加载失败标记挡住换 key 后的新 URL。
+- 安全边界：带 key 的图标响应是 `private, no-store`，Service Worker 的 `cacheIconResponse` 已经显式拒收这类响应，边缘缓存路径全程 `cacheKey = null`，因此这条改动不会把私密图标写进任何共享缓存。
+- 验证：新增 `tests/unit/categoryPrivacy.test.ts`（7 条）、`tests/unit/privateIconAccessWiring.test.ts`（5 条接线契约），扩展 `tests/unit/publicVisibility.test.ts`（前后端口径互补交叉断言）与 `tests/unit/bookmarkCardIconState.test.ts`（4 条授权路径）；`npx tsc --noEmit`、`npx svelte-check` 0 错误，`npx vitest run` 980 passed（`verifyTarget.test.ts` 2 条失败与本次改动无关，系本地环境无法派生子进程），`vite build` 通过。
+
 ### Spotlight 结果显示真实书签图标
 
 - Spotlight 结果行接入首页书签图标解析、Iconify 代理、本地缓存、缓存图标代理和失败回退链路；有真实图标时显示图片，图标加载失败或无图片时回退到书签自定义文字/标题首字符。

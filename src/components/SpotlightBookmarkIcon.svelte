@@ -17,6 +17,8 @@
   const ICON_SIZE = 30
 
   export let bookmark: PublicBookmark
+  // 私密书签的图标授权 key；非空时跳过本地图标缓存，直接走带授权的代理 URL。
+  export let iconAccessKey = ''
 
   let cachedIconFailed = false
   let fallbackFailed = false
@@ -30,10 +32,13 @@
     bookmark,
     iconInView: true,
     shouldWaitForLocalIconCache: true,
+    iconAccessKey,
   })
   $: iconText = iconBaseState.iconText
   $: localCacheKey = iconBaseState.localCacheKey
-  $: syncLocalCachedIconUrl = readCachedBookmarkIconDataUri(localCacheKey) ?? ''
+  $: syncLocalCachedIconUrl = iconBaseState.requiresIconAccess
+    ? ''
+    : readCachedBookmarkIconDataUri(localCacheKey) ?? ''
   $: iconUrlState = deriveBookmarkCardIconUrl({
     bookmark,
     baseState: iconBaseState,

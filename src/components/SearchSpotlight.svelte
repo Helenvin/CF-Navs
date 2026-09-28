@@ -10,6 +10,8 @@
   import { setPageScrollLocked } from '../lib/pageScrollLock'
   import { publicStore } from '../lib/stores'
   import { api } from '../lib/api'
+  import { iconAccessKey } from '../lib/iconAccessKey'
+  import { bookmarkNeedsIconAccess, getPrivateCategoryIds } from '../lib/categoryPrivacy'
   import SpotlightBookmarkIcon from './SpotlightBookmarkIcon.svelte'
 
   export let open = false
@@ -30,6 +32,8 @@
 
   // 索引只随 bookmarks/categories 变化重建，不随每次输入（即时过滤，不防抖：面板 ≤50 行开销极小）。
   $: categoryTitles = new Map(categories.map((category) => [category.id, category.title]))
+  // 私密书签（含私密分类下的书签）图标需要授权 key，否则结果行只能显示兜底图。
+  $: privateCategoryIds = getPrivateCategoryIds(categories)
   $: searchIndex = buildSearchIndex(bookmarks, categoryTitles)
   $: normalizedQuery = normalizeSearchQuery(query)
   $: isEmptyQuery = normalizedQuery.length === 0
@@ -210,7 +214,7 @@
             on:click={() => openBookmarkFromSearch(bookmark)}
             on:mouseenter={() => (activeIndex = index)}
           >
-            <SpotlightBookmarkIcon {bookmark} />
+            <SpotlightBookmarkIcon {bookmark} iconAccessKey={bookmarkNeedsIconAccess(bookmark, privateCategoryIds) ? $iconAccessKey : ''} />
             <span class="spotlight-option-main">
               <span class="spotlight-option-title">{bookmark.title}</span>
               <span class="spotlight-option-sub">{categoryTitle(bookmark.category_id) || bookmark.url}</span>

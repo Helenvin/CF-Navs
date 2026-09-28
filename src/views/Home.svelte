@@ -29,6 +29,8 @@
     resolveHomeCategorySelection,
   } from '../lib/homeData'
   import { CARD_SIZE_DEFAULTS, CATEGORY_DISPLAY_DEFAULTS } from '../../shared/settings'
+  import { iconAccessKey } from '../lib/iconAccessKey'
+  import { categoryNeedsIconAccess, getPrivateCategoryIds } from '../lib/categoryPrivacy'
   import { buildCategoryTreeOptions } from '../lib/categorySelect'
   import { getErrorMessage } from '../lib/api'
   import { reorderByIds } from '../lib/reorder'
@@ -88,6 +90,10 @@
   let lastFocusedCategoryId: number | null = null
 
   $: sortedCategories = homeData.getSortedCategories(categories)
+  // 私密分类（含其全部后代）在登录态首页是可见的，但它们的图标只有带 icon-access
+  // key 才拿得到真实图标，否则服务端按匿名口径返回兜底图（PROB-20）。判定口径与
+  // 服务端一致，见 lib/categoryPrivacy.ts。
+  $: privateCategoryIds = getPrivateCategoryIds(categories)
   $: categoryForest = homeData.getCategoryForest(categories)
   $: sortedBookmarks = homeData.getSortedBookmarks(bookmarks)
   $: allCategoryBookmarks = groupBookmarksByCategory(sortedBookmarks)
@@ -454,6 +460,7 @@
     items={navigationSections}
     {activeId}
     {navigation}
+    {privateCategoryIds}
     onNavigate={handleNavigate}
     onPersistentExpansionChange={(expanded) => (persistentLeftExpanded = expanded)}
     onTopNavHeightChange={(height) => (topNavHeight = height)}
@@ -477,7 +484,12 @@
                 <header class="search-group-header">
                   <div class="search-group-title">
                     {#if category.icon}
-                      <CategoryIcon category={category} size="var(--category-root-icon-size, 38px)" className="search-category-icon" />
+                      <CategoryIcon
+                        category={category}
+                        size="var(--category-root-icon-size, 38px)"
+                        className="search-category-icon"
+                        iconAccessKey={categoryNeedsIconAccess(category.id, privateCategoryIds) ? $iconAccessKey : ''}
+                      />
                     {/if}
                     <h2 id={`search-category-${category.id}`} style={`font-size: var(--category-root-font-size, 1.28rem)`}>{category.title}</h2>
                   </div>
@@ -489,6 +501,7 @@
                     <CategorySection
                       category={category}
                       bookmarks={visibleCategoryBookmarks.get(category.id) ?? []}
+                      {privateCategoryIds}
                       level={2}
                       displayTitle="本分类"
                       showCategoryIcon={false}
@@ -511,6 +524,7 @@
                     <CategorySection
                       category={child}
                       bookmarks={visibleCategoryBookmarks.get(child.id) ?? []}
+                      {privateCategoryIds}
                       level={2}
                       showEmpty={false}
                       canAddBookmark={isAuthenticated}
@@ -538,6 +552,7 @@
           <CategorySection
             category={MOST_VISITED_CATEGORY}
             bookmarks={mostVisitedBookmarks}
+            {privateCategoryIds}
             showEmpty={false}
             cardWidth={settings?.card_size?.width ?? CARD_SIZE_DEFAULTS.width}
             cardHeight={settings?.card_size?.height ?? 60}
@@ -568,6 +583,7 @@
                 rootId={category.id}
                 title={category.title}
                 icon={category.icon}
+                {privateCategoryIds}
                 totalCount={getCategoryTreeBookmarkCount(category, allCategoryBookmarks)}
                 children={category.children.map((child) => ({
                   id: child.id,
@@ -600,6 +616,7 @@
                     <CategorySection
                       category={sortableCategory}
                       bookmarks={displayCategoryBookmarks.get(sortableCategory.id) ?? []}
+                      {privateCategoryIds}
                       level={sortableCategory.parent_id == null ? 1 : 2}
                       showHeading={true}
                       showEmpty={true}
@@ -626,6 +643,7 @@
                   <CategorySection
                     category={selectedCategory}
                     bookmarks={selectedBookmarks}
+                    {privateCategoryIds}
                     level={2}
                     showHeading={false}
                     inlineActions={true}
