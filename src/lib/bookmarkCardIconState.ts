@@ -1,6 +1,7 @@
 import type { PublicBookmark } from '../../shared/types'
 import { createIconVersion } from './bookmarkIconDisplay'
 import { iconifyProxyIcon, isIconifyIconUrl, logoSurfIcon } from './icons'
+import { withIconAccessKey } from './iconAccessKey'
 import { createBookmarkIconCacheKey } from './localBookmarkIconCache'
 
 export type BookmarkCardIconStateInput = {
@@ -12,12 +13,17 @@ export type BookmarkCardIconStateInput = {
   localCachedIconUrl?: string
   localCachePending?: boolean
   shouldWaitForLocalIconCache?: boolean
+  iconAccessKey?: string
 }
 
 export type BookmarkCardIconBaseInput = {
   bookmark: PublicBookmark
   iconInView: boolean
   shouldWaitForLocalIconCache?: boolean
+  // 私密书签（或挂在私密分类下）的图标需要短期授权 key。非空时图标只走带授权的
+  // 代理 URL，并**完全跳过本地图标缓存**：匿名态写进去的兜底图会让登录后仍显示
+  // 兜底，反过来带 key 取到的真实图标也不该落到同一台机器的共享缓存里（PROB-20）。
+  iconAccessKey?: string
 }
 
 export type BookmarkCardIconBaseState = {
@@ -35,6 +41,7 @@ export type BookmarkCardIconBaseState = {
   shouldUseIconProxy: boolean
   shouldWaitForLocalIconCache: boolean
   proxiedHttpIconUrl: string
+  requiresIconAccess: boolean
   nextIconStateKey: string
 }
 
@@ -55,12 +62,19 @@ export type BookmarkCardIconUrlState = {
 
 export type BookmarkCardIconState = BookmarkCardIconBaseState & BookmarkCardIconUrlState
 
-export function createBookmarkCardIconStateKey(bookmark: PublicBookmark, iconInView: boolean): string {
-  return `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.icon_blob ?? ''}:${bookmark.title}:${bookmark.url}:${iconInView}`
+export function createBookmarkCardIconStateKey(
+  bookmark: PublicBookmark,
+  iconInView: boolean,
+  requiresIconAccess = false,
+): string {
+  // 授权态参与键：从匿名切到带 key（或反过来）时必须重置失败标记，否则匿名态的
+  // 「加载失败」会挡住换 key 之后的新 URL。
+  return `${bookmark.id}:${bookmark.icon_source ?? ''}:${bookmark.icon ?? ''}:${bookmark.icon_blob ?? ''}:${bookmark.title}:${bookmark.url}:${iconInView}:${requiresIconAccess ? 'auth' : 'anon'}`
 }
 
 export function deriveBookmarkCardIconBase(input: BookmarkCardIconBaseInput): BookmarkCardIconBaseState {
-  const { bookmark, iconInView, shouldWaitForLocalIconCache = false } = input
+  const { bookmark, iconInView, shouldWaitForLocalIconCache = false, iconAccessKey = '' } = input
+  const requiresIconAccess = Boolean(iconAccessKey)
   const rawIcon = bookmark.icon?.trim() ?? ''
   const cachedIcon = bookmark.icon_blob?.trim() ?? ''
   const customTextIcon =
@@ -89,6 +103,7 @@ export function deriveBookmarkCardIconBase(input: BookmarkCardIconBaseInput): Bo
     !iconifyRemoteUrl &&
     !customTextIcon
   const shouldReadLocalIconCache =
+    !requiresIconAccess &&
     iconInView &&
     (canUseRawHttpIconFallback || hasCachedRemoteIcon) &&
     !iconifyRemoteUrl &&
@@ -96,7 +111,10 @@ export function deriveBookmarkCardIconBase(input: BookmarkCardIconBaseInput): Bo
     !customTextIcon
   const shouldUseIconProxy = hasCachedRemoteIcon
   const proxiedHttpIconUrl = shouldUseIconProxy
-    ? `/api/icon/${encodeURIComponent(String(bookmark.id))}?v=${createIconVersion(`${bookmark.id}:${rawIcon}:${bookmark.title}:${bookmark.url}`)}`
+    ? withIconAccessKey(
+      `/api/icon/${encodeURIComponent(String(bookmark.id))}?v=${createIconVersion(`${bookmark.id}:${rawIcon}:${bookmark.title}:${bookmark.url}`)}`,
+      iconAccessKey,
+    )
     : ''
 
   return {
@@ -114,7 +132,8 @@ export function deriveBookmarkCardIconBase(input: BookmarkCardIconBaseInput): Bo
     shouldUseIconProxy,
     shouldWaitForLocalIconCache,
     proxiedHttpIconUrl,
-    nextIconStateKey: createBookmarkCardIconStateKey(bookmark, iconInView),
+    requiresIconAccess,
+    nextIconStateKey: createBookmarkCardIconStateKey(bookmark, iconInView, requiresIconAccess),
   }
 }
 
@@ -149,8 +168,11 @@ export function deriveBookmarkCardIconUrl(input: BookmarkCardIconUrlInput): Book
     if (!cachedIconFailed && hasEmbeddedIcon) return cachedIcon
     if (bookmark.icon_source === 'logo_surf' && !rawIcon) return logoSurfIcon(bookmark.title, bookmark.url)
     if (bookmark.icon_source === 'logo_surf' && /^data:image\//i.test(rawIcon)) return rawIcon
-    if (syncLocalCachedIconUrl) return syncLocalCachedIconUrl
-    if (localCachedIconUrl) return localCachedIconUrl
+    // 私密对象不使用本地缓存：匿名态缓存下来的兜底图会让登录后继续显示兜底。
+    if (!baseState.requiresIconAccess) {
+      if (syncLocalCachedIconUrl) return syncLocalCachedIconUrl
+      if (localCachedIconUrl) return localCachedIconUrl
+    }
     if (localCachePending && shouldWaitForLocalIconCache) return ''
     if ((!rawIcon && !hasCachedRemoteIcon) || customTextIcon) return ''
     if (iconifyRemoteUrl) return iconifyRemoteUrl
@@ -171,6 +193,7 @@ export function deriveBookmarkCardIconState(input: BookmarkCardIconStateInput): 
     bookmark: input.bookmark,
     iconInView: input.iconInView,
     shouldWaitForLocalIconCache: input.shouldWaitForLocalIconCache,
+    iconAccessKey: input.iconAccessKey,
   })
   const urlState = deriveBookmarkCardIconUrl({
     bookmark: input.bookmark,

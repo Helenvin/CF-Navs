@@ -1,4 +1,5 @@
 import type { AdminBookmarkSummary, AdminCategorySummary } from './appData'
+import { getPrivateCategoryIds } from './categoryPrivacy'
 import { buildCategoryTreeOptions, type CategoryTreeOption } from './categorySelect'
 import { DEFAULT_PAGE_SIZE, clampPage, pageCount, pageEnd, pageStart, slicePage } from './pagination'
 import { reorderByIds } from './reorder'
@@ -123,29 +124,9 @@ export function flattenAdminCategoryGroups(groups: AdminCategoryGroup[]): AdminC
  * 由 `tests/unit/adminListState.test.ts` 的交叉断言防止两侧漂移。
  */
 export function getHiddenCategoryIds(categories: AdminCategorySummary[]): Set<number> {
-  const byId = new Map(categories.map((category) => [Number(category.id), category]))
-  const hidden = new Set<number>()
-
-  for (const category of categories) {
-    const visited = new Set<number>()
-    let current: AdminCategorySummary | undefined = category
-
-    while (current) {
-      const currentId = Number(current.id)
-      if (visited.has(currentId)) {
-        hidden.add(Number(category.id))
-        break
-      }
-      visited.add(currentId)
-      if (current.is_private === true) {
-        hidden.add(Number(category.id))
-        break
-      }
-      current = current.parent_id == null ? undefined : byId.get(Number(current.parent_id))
-    }
-  }
-
-  return hidden
+  // 口径实现收敛到 `categoryPrivacy`：首页与后台必须用同一份判定，否则后台看到的
+  // 「仅登录可见」标记会和首页图标的授权判断分叉。
+  return getPrivateCategoryIds(categories)
 }
 
 /**

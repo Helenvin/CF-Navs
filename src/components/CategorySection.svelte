@@ -4,6 +4,8 @@
   import { resolveBookmarkDescriptionMode } from '../lib/descriptionMode'
   import BookmarkCard from './BookmarkCard.svelte'
   import CategoryIcon from './CategoryIcon.svelte'
+  import { iconAccessKey } from '../lib/iconAccessKey'
+  import { bookmarkNeedsIconAccess, categoryNeedsIconAccess } from '../lib/categoryPrivacy'
   import { getInfoCardMobileTrackWidth, getInfoCardTrackWidth, getIconCardTrackWidth } from '../lib/bookmarkCardLayout'
   import { sortableList, type SortTransfer } from '../lib/sortableList'
 
@@ -11,6 +13,8 @@
 
   export let category: PublicCategory
   export let bookmarks: PublicBookmark[] = []
+  // 私密分类（含后代）及其下书签的图标需要短期授权 key，匿名访客为空集合，行为不变。
+  export let privateCategoryIds: Set<number> = new Set()
   export let level: 1 | 2 = 1
   export let showEmpty = true
   export let displayTitle = ''
@@ -86,7 +90,12 @@
       {#if showHeading}
         <div class="section-title-wrap">
           {#if showCategoryIcon && category.icon}
-            <CategoryIcon category={category} size={level === 2 ? 'var(--category-child-icon-size, 30px)' : 'var(--category-root-icon-size, 38px)'} className="section-icon" />
+            <CategoryIcon
+              category={category}
+              size={level === 2 ? 'var(--category-child-icon-size, 30px)' : 'var(--category-root-icon-size, 38px)'}
+              className="section-icon"
+              iconAccessKey={categoryNeedsIconAccess(category.id, privateCategoryIds) ? $iconAccessKey : ''}
+            />
           {/if}
           <div class="section-copy">
             <div class="section-heading-row">
@@ -198,6 +207,7 @@
         <div class="bookmark-grid-item" data-sortable-item data-sort-id={bookmark.id}>
           <BookmarkCard
             {bookmark}
+            iconAccessKey={bookmarkNeedsIconAccess(bookmark, privateCategoryIds) ? $iconAccessKey : ''}
             style={cardStyle}
             iconSize={cardIconSize}
             showDescription={resolveBookmarkDescriptionMode(bookmark, cardDescriptionMode) !== 'hidden'}

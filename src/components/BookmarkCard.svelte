@@ -44,6 +44,9 @@
   export let sortMode = false
   export let preview = false
   export let themeOverride: 'light' | 'dark' | null = null
+  // 私密书签（或挂在私密分类下）的图标授权 key；非空时跳过本地图标缓存直接走带
+  // 授权的代理 URL。匿名场景传空串，行为与之前完全一致。
+  export let iconAccessKey = ''
   export let onEdit: ((bookmark: PublicBookmark) => AsyncVoid) | undefined = undefined
   export let moveCategories: CategoryTreeOption[] = []
   export let onMoveBookmark: ((bookmark: PublicBookmark, categoryId: number) => AsyncVoid) | undefined = undefined
@@ -74,13 +77,14 @@
     bookmark,
     iconInView,
     shouldWaitForLocalIconCache: true,
+    iconAccessKey,
   })
   $: iconText = iconBaseState.iconText
   $: nextIconStateKey = iconBaseState.nextIconStateKey
   $: localCacheKey = iconBaseState.localCacheKey
   $: shouldReadLocalIconCache = iconBaseState.shouldReadLocalIconCache
   $: shouldWaitForLocalIconCache = iconBaseState.shouldWaitForLocalIconCache
-  $: syncLocalCachedIconUrl = iconInView && !iconBaseState.hasEmbeddedIcon
+  $: syncLocalCachedIconUrl = iconInView && !iconBaseState.hasEmbeddedIcon && !iconBaseState.requiresIconAccess
     ? readCachedBookmarkIconDataUri(localCacheKey) ?? ''
     : ''
   $: iconUrlState = deriveBookmarkCardIconUrl({

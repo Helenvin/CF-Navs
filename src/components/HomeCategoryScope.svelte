@@ -1,6 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import { getAnchoredOverlayPosition } from '../lib/navigationLayout'
+  import { iconAccessKey } from '../lib/iconAccessKey'
+  import { categoryNeedsIconAccess } from '../lib/categoryPrivacy'
   import CategoryIcon from './CategoryIcon.svelte'
 
   type HomeCategoryScopeItem = {
@@ -15,6 +17,8 @@
   export let rootId: number
   export let title = ''
   export let icon: string | null = null
+  // 私密分类（含后代）的图标需要短期授权 key，匿名访客为空集合。
+  export let privateCategoryIds: Set<number> = new Set()
   export let totalCount = 0
   export let children: HomeCategoryScopeItem[] = []
   export let activeId: number | null = null
@@ -152,7 +156,12 @@
 <svelte:window on:pointerdown={handleWindowPointerDown} on:keydown={handleWindowKeyDown} on:resize={handleWindowResize} />
 <section class="category-scope" class:has-children={children.length > 0} class:has-actions={reserveActions} class:selected={rootActive} class:highlighted={highlightedId === rootId} data-home-category-scope={rootId} aria-labelledby={`home-category-heading-${rootId}`}>
   <div class="scope-heading">
-    <CategoryIcon category={{ id: rootId, title, icon }} size="var(--category-root-icon-size, 40px)" className="scope-icon" />
+    <CategoryIcon
+      category={{ id: rootId, title, icon }}
+      size="var(--category-root-icon-size, 40px)"
+      className="scope-icon"
+      iconAccessKey={categoryNeedsIconAccess(rootId, privateCategoryIds) ? $iconAccessKey : ''}
+    />
     <div class="scope-accent" aria-hidden="true"></div>
     <div class="scope-copy">
       <div class="scope-title-row">
@@ -238,7 +247,12 @@
                 on:click={() => select(child.id)}
               >
                 {#if child.icon}
-                  <CategoryIcon category={{ id: child.id, title: child.title, icon: child.icon }} size="var(--category-child-icon-size, 22px)" className="scope-tab-icon" />
+                  <CategoryIcon
+                    category={{ id: child.id, title: child.title, icon: child.icon }}
+                    size="var(--category-child-icon-size, 22px)"
+                    className="scope-tab-icon"
+                    iconAccessKey={categoryNeedsIconAccess(child.id, privateCategoryIds) ? $iconAccessKey : ''}
+                  />
                 {/if}
                 <span>{child.title}</span>
                 <small>{child.count}</small>

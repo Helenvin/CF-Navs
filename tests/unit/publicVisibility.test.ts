@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PublicCategory } from '../../shared/types'
 import { getPublicCategoryIds, isBookmarkIconAnonymouslyVisible } from '../../worker/lib/db/aggregates'
 import { getHiddenCategoryIds } from '../../src/lib/adminListState'
+import { bookmarkNeedsIconAccess, getPrivateCategoryIds } from '../../src/lib/categoryPrivacy'
 
 const category = (id: number, parent_id: number | null, is_private?: boolean | number): PublicCategory => ({
   id,
@@ -54,6 +55,44 @@ describe('public category visibility', () => {
 
     for (const item of tree) {
       expect(hidden.has(item.id)).toBe(!visible.has(item.id))
+    }
+  })
+
+  // 首页要显示私密对象的真实图标就得带授权 key，判定必须与服务端「匿名是否可见」严格互补，
+  // 否则会出现「该带 key 的没带（显示兜底图）」或「公开图标白带 key（丢掉边缘缓存）」。
+  it('keeps the home-side icon-access rule complementary to the worker visibility rule', () => {
+    const tree = [
+      category(1, null),
+      category(2, 1, true),
+      category(3, 2),
+      category(4, null),
+      category(5, 4, 0),
+      category(6, null, 1),
+    ]
+
+    const visible = getPublicCategoryIds(tree)
+    const privateIds = getPrivateCategoryIds(tree)
+
+    for (const item of tree) {
+      expect(privateIds.has(item.id)).toBe(!visible.has(item.id))
+    }
+
+    // 只覆盖分类确实存在的书签：首页按分类分组渲染，孤立书签不会出现。
+    const bookmarks = [
+      { category_id: 1 },
+      { category_id: 4 },
+      { category_id: 5 },
+      { category_id: 2 },
+      { category_id: 3 },
+      { category_id: 6 },
+      { category_id: 1, is_private: true },
+      { category_id: 1, is_private: 1 },
+      { category_id: 1, is_private: false },
+      { category_id: 1, is_private: 0 },
+    ]
+
+    for (const item of bookmarks) {
+      expect(bookmarkNeedsIconAccess(item, privateIds)).toBe(!isBookmarkIconAnonymouslyVisible(item, visible))
     }
   })
 

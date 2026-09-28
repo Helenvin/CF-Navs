@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte'
   import type { NavigationSetting } from '../../shared/types'
   import CategoryIcon from './CategoryIcon.svelte'
+  import { iconAccessKey } from '../lib/iconAccessKey'
   import {
     getAnchoredOverlayPosition,
     getHorizontalNavigationMetrics,
@@ -19,6 +20,9 @@
   }
 
   export let items: NavigationItem[] = []
+  // 私密分类（含后代）的图标需要短期授权 key，否则服务端按匿名口径返回兜底图。
+  // 匿名访客拿到的集合为空，行为不变。
+  export let privateCategoryIds: Set<number> = new Set()
   export let activeId: string | number | null = null
   export let navigation: NavigationSetting = { position: 'left', always_expanded: false, top_layout: 'scroll' }
   export let onNavigate: ((id: string | number) => void) | undefined = undefined
@@ -191,6 +195,11 @@
       title: item.title,
       icon: item.icon ?? null,
     }
+  }
+
+  // 只有私密分类才带 key：公开分类继续走匿名可缓存的图标路径。
+  function getCategoryIconAccessKey(item: NavigationItem): string {
+    return privateCategoryIds.has(item.categoryId) ? $iconAccessKey : ''
   }
 
   function toggleParent(item: NavigationItem, event?: MouseEvent): void {
@@ -474,7 +483,7 @@
             on:click={() => handleItemClick(item.id)}
           >
             {#if item.icon}
-              <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 22px)" className="top-category-icon" />
+              <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 22px)" className="top-category-icon" iconAccessKey={getCategoryIconAccessKey(item)} />
             {/if}
             <span>{item.title}</span>
             {#if item.count != null}<small>{item.count}</small>{/if}
@@ -528,7 +537,7 @@
             >
               <span class="top-submenu-title">
                 {#if child.icon}
-                  <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 22px)" className="top-submenu-icon" />
+                  <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 22px)" className="top-submenu-icon" iconAccessKey={getCategoryIconAccessKey(child)} />
                 {/if}
                 <span>{child.title}</span>
               </span>
@@ -596,7 +605,7 @@
             >
               {#if item.icon}
                 <span class="toc-icon-slot">
-                  <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 26px)" className="toc-category-icon" />
+                  <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 26px)" className="toc-category-icon" iconAccessKey={getCategoryIconAccessKey(item)} />
                 </span>
               {:else}
                 <span class="toc-slip"></span>
@@ -629,7 +638,7 @@
                 >
                   <span class="toc-child-title">
                     {#if child.icon}
-                      <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 21px)" className="toc-child-icon" />
+                      <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 21px)" className="toc-child-icon" iconAccessKey={getCategoryIconAccessKey(child)} />
                     {/if}
                     <span>{child.title}</span>
                   </span>
