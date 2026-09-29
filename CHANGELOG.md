@@ -7,6 +7,18 @@
 
 ## [Unreleased]
 
+### 修复侧栏私密分类图标在 key 签发后不恢复、以及刷新首屏闪兜底图
+
+- 现象：上一条修复上线后，登录态首页的分类区块、卡片、Spotlight 图标都能正常恢复，唯独**左侧栏**的私密分类图标刷新页面后永远停在兜底图——书签卡片图标一秒内就换回真实图标，侧栏却纹丝不动。
+- 根因一（响应性缺口）：`Sidebar.svelte` 把「是否带 key」的判定封装成 `getCategoryIconAccessKey()` 再在模板里调用。Svelte 只追踪模板表达式里直接出现的依赖，藏在函数体内的 `$iconAccessKey` 变化不会让那 4 处 `iconAccessKey={getCategoryIconAccessKey(...)}` 重新求值——key 异步签发完成后，侧栏图标保持无 key 的代理地址，服务端按匿名口径返回兜底图。其余挂载点都是内联三元（`$iconAccessKey` 直接出现在模板里），所以只有侧栏中招。
+- 根因二（首屏时序）：`refreshLoggedInData()` 里 key 签发是 `void ensureIconAccessKey(...)` 放后台飞的，而本地快照渲染紧接着就开始——首屏私密图标必然先以无 key 地址请求一轮、拿到兜底图，key 到位后才二跳换成真实图标。
+- 根因三（过期退化）：`iconAccessKey.ts` 注释里宣称「临近过期前提前续签」，实现却一直缺席。key 寿命默认 30 分钟，页面停留超过寿命后所有私密图标整体退化成兜底图，直到某次数据刷新才恢复——「过一会儿图标又坏了」的另一半成因。
+- 修复：
+  - `Sidebar.svelte` 的 4 处判定改为内联三元（`privateCategoryIds.has(...) ? $iconAccessKey : ''`），与其它挂载点同构，并删除 `getCategoryIconAccessKey`；
+  - `refreshLoggedInData()` 里 key 签发与本地快照读取 `Promise.all` 并行后 `await`——登录态首屏多花一次 icon-access 往返，但私密图标第一次请求就带 key，直接出真实图标，不再闪兜底；
+  - `iconAccessKey.ts` 补上临期自动续签：签发成功后排程在 `expires_at - 2 分钟` 触发重签，新 key 到位后按新过期时间重新排程，登出/改密码清掉定时器。
+- 验证：`tests/unit/privateIconAccessWiring.test.ts` 的 Sidebar 断言改为「内联三元各 2 处 + 不再出现 `getCategoryIconAccessKey`」；新增 `tests/unit/sidebarIconKeyReactivity.test.ts`（2 条，jsdom 渲染 Sidebar 断言 key 从空到有后 `img.src` 自动带上 key、公开分类始终不带 key）；新增 `tests/unit/iconAccessKeyRenewal.test.ts`（4 条，fake timers 验证临期续签、重排程、登出清理、失败重试）。`npx tsc --noEmit` 0 错误，`npx vitest run` 986 passed（`verifyTarget.test.ts` 2 条失败与本次改动无关，系本地环境无法派生子进程），`vite build` 通过。
+
 ### 修复登录态首页看不到私密对象的真实图标
 
 - 现象：登录后首页里「仅登录可见」的分类（以及它们下面的书签）图标全是兜底占位图——左侧栏分类、分类区块标题、分类 tab、卡片图标、Spotlight 结果行都中招；后台同一批对象却显示真实图标。

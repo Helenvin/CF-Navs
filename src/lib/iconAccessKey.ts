@@ -22,6 +22,11 @@ type GrantState = {
 
 const grantStore = writable<GrantState | null>(null)
 let inflight: Promise<string> | null = null
+// 临期自动续签用的句柄：记住最近一次的签发函数与定时器。注释里宣称的「临近过期前
+// 提前续签」曾长期只有这句话没有实现——页面停留超过 key 寿命后图标会整体退化成
+// 兜底图，直到某次数据刷新才恢复。
+let renewTimer: ReturnType<typeof setTimeout> | null = null
+let renewFetchGrant: (() => Promise<IconAccessResp>) | null = null
 
 /** 当前可用的 key；组件订阅它，key 到位后图标 URL 自动带上参数。 */
 export const iconAccessKey = writable('')
@@ -32,6 +37,17 @@ function publish(state: GrantState | null, now = Date.now()): string {
  return usable
 }
 
+function scheduleRenewal(expiresAt: number, now: number): void {
+ if (!renewFetchGrant) return
+ if (renewTimer) clearTimeout(renewTimer)
+ // 时钟偏差或服务端签出的短命 key 可能让 delay 变负，钳到 5 秒避免紧密循环。
+ const delay = Math.max(expiresAt - RENEW_BEFORE_MS - now, 5000)
+ renewTimer = setTimeout(() => {
+  renewTimer = null
+  void ensureIconAccessKey(renewFetchGrant!)
+ }, delay)
+}
+
 export function readIconAccessKey(now = Date.now()): string {
  return publish(get(grantStore), now)
 }
@@ -39,6 +55,11 @@ export function readIconAccessKey(now = Date.now()): string {
 export function clearIconAccessKey(): void {
  grantStore.set(null)
  inflight = null
+ renewFetchGrant = null
+ if (renewTimer) {
+  clearTimeout(renewTimer)
+  renewTimer = null
+ }
  iconAccessKey.set('')
 }
 
@@ -58,8 +79,10 @@ export async function ensureIconAccessKey(
   try {
    const next = await fetchGrant()
    if (typeof next?.key !== 'string' || !next.key || typeof next.expires_at !== 'number') return ''
+   renewFetchGrant = fetchGrant
    const state: GrantState = { key: next.key, expiresAt: next.expires_at }
    grantStore.set(state)
+   scheduleRenewal(next.expires_at, now)
    return publish(state)
   } catch {
    return ''

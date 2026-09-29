@@ -7,12 +7,15 @@ const read = (path: string) => readFileSync(path, 'utf8')
 // 「不可见」，服务端返回兜底图，于是登录用户在首页看到的是占位图标（后台却有真实
 // 图标）。这些断言锁住每个挂载点都真的把 key 传下去了。
 describe('private icon access wiring', () => {
-  it('Sidebar 给私密分类的图标挂上授权 key', () => {
+  it('Sidebar 给私密分类的图标挂上授权 key，且判定内联在模板表达式里', () => {
     const source = read('src/components/Sidebar.svelte')
 
-    expect(source).toContain('privateCategoryIds.has(item.categoryId) ? $iconAccessKey')
-    expect(source.match(/iconAccessKey={getCategoryIconAccessKey\(item\)}/g)).toHaveLength(2)
-    expect(source.match(/iconAccessKey={getCategoryIconAccessKey\(child\)}/g)).toHaveLength(2)
+    // key 是否传递由 `$iconAccessKey` 直接参与的内联三元决定。封装成函数再在模板里调用
+    // 的话（getCategoryIconAccessKey 那一版），Svelte 追踪不到函数体内的 store 依赖，
+    // key 异步签发完成后模板不会重新求值，图标会永远卡在无 key 的兜底图上。
+    expect(source.match(/privateCategoryIds\.has\(item\.categoryId\) \? \$iconAccessKey : ''/g)).toHaveLength(2)
+    expect(source.match(/privateCategoryIds\.has\(child\.categoryId\) \? \$iconAccessKey : ''/g)).toHaveLength(2)
+    expect(source).not.toContain('getCategoryIconAccessKey')
   })
 
   it('Home 计算私密分类集合并下发到侧栏、分类区块与分类 tab', () => {

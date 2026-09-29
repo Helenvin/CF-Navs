@@ -403,9 +403,15 @@ export async function persistCurrentAdminData(): Promise<void> {
 }
 
 export async function refreshLoggedInData(forceRemote = false): Promise<void> {
-  // 后台预览私密对象图标需要短期授权 key。失败只降级成兜底图标，不影响数据刷新。
-  void ensureIconAccessKey(() => api.auth.iconAccess())
-  const cached = !forceRemote ? await readCachedAdminDataEntry() : null
+  // 后台预览私密对象图标需要短期授权 key。这里必须 await（与本地快照读取并行，正常只
+  // 多花一次 icon-access 往返）：登录态首页的私密图标要拿它拼带 key 的代理地址，如果
+  // 放任签发在后台飞，首屏会先以无 key 地址请求、拿到服务端兜底图，key 到位后才二跳
+  // 换成真实图标。签发失败返回空串，图标退化为兜底但数据刷新照常进行。
+  const [iconAccessGrant, cached] = await Promise.all([
+    ensureIconAccessKey(() => api.auth.iconAccess()),
+    forceRemote ? Promise.resolve(null) : readCachedAdminDataEntry(),
+  ])
+  void iconAccessGrant
 
   if (cached?.data.settings) {
     applyLoggedInData(cached.data, cached.version)

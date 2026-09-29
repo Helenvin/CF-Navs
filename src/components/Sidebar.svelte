@@ -198,9 +198,10 @@
   }
 
   // 只有私密分类才带 key：公开分类继续走匿名可缓存的图标路径。
-  function getCategoryIconAccessKey(item: NavigationItem): string {
-    return privateCategoryIds.has(item.categoryId) ? $iconAccessKey : ''
-  }
+  //
+  // ⚠️ 这个判定必须内联在模板表达式里（`privateCategoryIds.has(...) ? $iconAccessKey : ''`），
+  // 不能封装成函数再在模板里调用：Svelte 只追踪模板表达式里直接出现的依赖，$iconAccessKey
+  // 藏在函数体内的话，key 异步签发完成后模板不会重新求值，图标会永远卡在无 key 的兜底图上。
 
   function toggleParent(item: NavigationItem, event?: MouseEvent): void {
     if (!item.children?.length) return
@@ -483,7 +484,7 @@
             on:click={() => handleItemClick(item.id)}
           >
             {#if item.icon}
-              <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 22px)" className="top-category-icon" iconAccessKey={getCategoryIconAccessKey(item)} />
+              <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 22px)" className="top-category-icon" iconAccessKey={privateCategoryIds.has(item.categoryId) ? $iconAccessKey : ''} />
             {/if}
             <span>{item.title}</span>
             {#if item.count != null}<small>{item.count}</small>{/if}
@@ -537,7 +538,7 @@
             >
               <span class="top-submenu-title">
                 {#if child.icon}
-                  <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 22px)" className="top-submenu-icon" iconAccessKey={getCategoryIconAccessKey(child)} />
+                  <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 22px)" className="top-submenu-icon" iconAccessKey={privateCategoryIds.has(child.categoryId) ? $iconAccessKey : ''} />
                 {/if}
                 <span>{child.title}</span>
               </span>
@@ -605,7 +606,7 @@
             >
               {#if item.icon}
                 <span class="toc-icon-slot">
-                  <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 26px)" className="toc-category-icon" iconAccessKey={getCategoryIconAccessKey(item)} />
+                  <CategoryIcon category={getCategoryIconValue(item)} size="var(--category-root-icon-size, 26px)" className="toc-category-icon" iconAccessKey={privateCategoryIds.has(item.categoryId) ? $iconAccessKey : ''} />
                 </span>
               {:else}
                 <span class="toc-slip"></span>
@@ -638,7 +639,7 @@
                 >
                   <span class="toc-child-title">
                     {#if child.icon}
-                      <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 21px)" className="toc-child-icon" iconAccessKey={getCategoryIconAccessKey(child)} />
+                      <CategoryIcon category={getCategoryIconValue(child)} size="var(--category-child-icon-size, 21px)" className="toc-child-icon" iconAccessKey={privateCategoryIds.has(child.categoryId) ? $iconAccessKey : ''} />
                     {/if}
                     <span>{child.title}</span>
                   </span>
